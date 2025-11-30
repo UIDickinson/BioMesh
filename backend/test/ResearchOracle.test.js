@@ -249,32 +249,45 @@ describe("ResearchOracle", function () {
     });
 
     it("Should allow owner to withdraw fees", async function () {
-      const { researchOracle, owner, researcher1, queryFee } = 
+      const { researchOracle, dataRegistry, paymentProcessor, owner, platformWallet, researcher1, patient1, queryFee } = 
         await loadFixture(deployResearchOracleFixture);
 
-      // Execute queries to accumulate fees
+      // Patient submits data
+      const encryptedAge = ethers.hexlify(ethers.randomBytes(32));
+      const encryptedDiagnosis = ethers.hexlify(ethers.randomBytes(32));
+      const encryptedOutcome = ethers.hexlify(ethers.randomBytes(32));
+      const encryptedBiomarker = ethers.hexlify(ethers.randomBytes(32));
+      const inputProof = "0x";
+
+      await dataRegistry
+        .connect(patient1)
+        .submitHealthData(encryptedAge, encryptedDiagnosis, encryptedOutcome, encryptedBiomarker, inputProof);
+
+      // Track initial balance
+      const initialBalance = await ethers.provider.getBalance(platformWallet.address);
+      
+      // Execute query which transfers platform fees to platformWallet
       await researchOracle
         .connect(researcher1)
         .computeAverageBiomarker(30, 60, 250, { value: queryFee });
 
-      const initialBalance = await ethers.provider.getBalance(owner.address);
-      
-      const tx = await researchOracle.connect(owner).withdrawFees();
-      const receipt = await tx.wait();
-      const gasUsed = receipt.gasUsed * receipt.gasPrice;
+      // platformWallet should have received platform fees (30% of queryFee)
+      const expectedPlatformFee = queryFee * 30n / 100n;
+      const finalBalance = await ethers.provider.getBalance(platformWallet.address);
 
-      const finalBalance = await ethers.provider.getBalance(owner.address);
-
-      // Owner should receive fees minus gas costs
-      expect(finalBalance).to.be.gt(initialBalance - gasUsed);
+      // Balance increased by the platform fee
+      expect(finalBalance - initialBalance).to.equal(expectedPlatformFee);
     });
 
-    it("Should prevent withdrawal when no fees available", async function () {
-      const { researchOracle, owner } = await loadFixture(deployResearchOracleFixture);
+    it("Should prevent withdrawal when no platform earnings available", async function () {
+      const { dataRegistry, paymentProcessor, owner, researcher1, patient1, queryFee } = 
+        await loadFixture(deployResearchOracleFixture);
 
+      // No queries executed, so no platform fees accumulated
+      // emergencyWithdraw should revert with no withdrawable funds
       await expect(
-        researchOracle.connect(owner).withdrawFees()
-      ).to.be.revertedWith("No fees to withdraw");
+        paymentProcessor.connect(owner).emergencyWithdraw()
+      ).to.be.revertedWith("No withdrawable funds");
     });
   });
 

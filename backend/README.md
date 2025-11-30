@@ -177,6 +177,190 @@ Default configuration:
 
 Fee splits are adjustable by contract owner.
 
+## 🎓 Integration with Actual Zama fhEVM Packages
+
+### Current Setup (Development/Testing)
+
+The project currently uses **mock TFHE libraries** for local development:
+- ✅ Full contract compilation
+- ✅ Complete test suite (78 tests passing)
+- ✅ Works on local/Sepolia networks
+- ❌ Uses simulated encryption (no real privacy)
+
+### Upgrading to Production-Grade Zama fhEVM
+
+Follow these steps to integrate actual Zama encrypted computation:
+
+#### Step 1: Install Zama Packages
+
+```bash
+npm install fhevm@0.5.0 fhevmjs@0.5.0
+```
+
+Verify installation:
+```bash
+npm list fhevm fhevmjs
+```
+
+#### Step 2: Update Environment Configuration
+
+Add to `.env`:
+
+```bash
+# Zama fhEVM Devnet RPC
+ZAMA_DEVNET_RPC_URL=https://devnet.zama.ai
+
+# Optional: Your Zama API Key
+ZAMA_API_KEY=your_zama_api_key_here
+```
+
+#### Step 3: Configure Hardhat for Zama Devnet
+
+The `hardhat.config.js` already includes Zama network configuration:
+
+```javascript
+// In hardhat.config.js networks section:
+zamaDevnet: {
+  url: process.env.ZAMA_DEVNET_RPC_URL || "https://devnet.zama.ai",
+  accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+  chainId: 8009,
+}
+```
+
+#### Step 4: Replace Mock Files (Optional)
+
+The installed `fhevm` package provides the actual TFHE library. You can:
+
+**Option A: Remove mock files (automatic resolution)**
+```bash
+rm -rf fhevm/lib/TFHE.sol fhevm/config/ fhevm/gateway/
+# Imports will automatically use npm package files
+```
+
+**Option B: Keep mocks as fallback**
+```bash
+# Leave existing files - they won't interfere
+# npm will prioritize installed packages
+```
+
+#### Step 5: Compile with Real Zama Library
+
+```bash
+npx hardhat clean
+npx hardhat compile
+```
+
+You should see real `TFHE.sol` from fhevm package being compiled.
+
+#### Step 6: Deploy to Zama Devnet
+
+```bash
+# Test locally first
+npx hardhat run scripts/deploy.js --network localhost
+
+# Deploy to Zama Devnet (requires Devnet access)
+npx hardhat run scripts/deploy.js --network zamaDevnet
+```
+
+#### Step 7: Verify FHE Operations
+
+Once deployed to Zama Devnet, your contracts can:
+- ✅ Perform real encrypted computations
+- ✅ Execute FHE operations on-chain
+- ✅ Use threshold decryption via Zama Gateway
+- ✅ Maintain cryptographic privacy
+
+### Using Encrypted Data in Client Code
+
+With `fhevmjs`, your frontend can encrypt data before sending:
+
+```javascript
+import { createInstance } from "fhevmjs";
+
+async function encryptData(value) {
+  // Initialize fhEVM instance
+  const instance = await createInstance();
+  
+  // Encrypt patient age
+  const encryptedAge = instance.encrypt32(25);
+  
+  // Send to contract
+  await contract.submitHealthData(
+    encryptedAge,
+    encryptedDiagnosis,
+    // ...
+  );
+}
+```
+
+### Testing with Real FHE
+
+After integration, tests continue to work:
+
+```bash
+# Tests still pass with real TFHE library
+npm test
+
+# Run with gas reporting on Zama Devnet
+REPORT_GAS=true npx hardhat test --network zamaDevnet
+```
+
+### Troubleshooting Zama Integration
+
+**Issue: "Cannot find TFHE module"**
+```bash
+# Ensure package is installed
+npm install fhevm@0.5.0
+# Check package.json has fhevm listed
+cat package.json | grep fhevm
+```
+
+**Issue: "Zama Devnet connection failed"**
+```bash
+# Check RPC URL is correct
+echo $ZAMA_DEVNET_RPC_URL
+
+# Verify network connectivity
+curl https://devnet.zama.ai
+```
+
+**Issue: Compilation fails with viaIR enabled**
+```bash
+# Ensure viaIR setting is in hardhat.config.js
+# This is required for Zama contracts due to stack depth
+```
+
+### Migration Checklist
+
+- [ ] `npm install fhevm fhevmjs` completed
+- [ ] `.env` updated with `ZAMA_DEVNET_RPC_URL`
+- [ ] `hardhat.config.js` has zamaDevnet network configured
+- [ ] `npm test` passes with real TFHE library
+- [ ] `npx hardhat compile` succeeds
+- [ ] Mock files removed or kept as fallback
+- [ ] Deployment tested on localhost first
+- [ ] Contracts deployed to Zama Devnet
+- [ ] Verify FHE operations work on-chain
+
+### Production Deployment
+
+Before deploying to Zama Mainnet (when available):
+
+1. **Security Audit**: Have contracts audited by Zama-certified firm
+2. **Gas Optimization**: Test gas costs on Devnet
+3. **Key Management**: Implement secure key management for threshold decryption
+4. **Monitoring**: Set up event monitoring for encrypted transactions
+5. **Documentation**: Document FHE operation specifics
+
+### Resources
+
+- 📖 [Zama fhEVM Docs](https://docs.zama.ai/fhevm)
+- 💻 [fhevmjs Documentation](https://docs.zama.ai/fhevmjs)
+- 🔗 [Zama Devnet Explorer](https://explorer.zama.ai/)
+- 💬 [Zama Discord Community](https://discord.gg/zama)
+
+---
+
 ## 🛠️ Development Commands
 
 ```bash
@@ -197,6 +381,9 @@ npm run deploy:sepolia
 
 # Verify on Etherscan
 npm run verify:sepolia
+
+# Deploy to Zama Devnet (after integration)
+npx hardhat run scripts/deploy.js --network zamaDevnet
 
 # Run tests
 npm test

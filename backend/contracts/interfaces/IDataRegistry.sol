@@ -112,48 +112,6 @@ interface IDataRegistry {
      */
     function getPatientRecords(address patient) external view returns (uint256[] memory);
     
-    /**
-     * @notice Get record details
-     * @param recordId The record ID
-     * @return HealthRecord struct
-     */
-    function getRecord(uint256 recordId) external view returns (HealthRecord memory);
-    
-    /**
-     * @notice Check if record is active
-     * @param recordId The record ID
-     * @return Boolean indicating if record is active
-     */
-    function isRecordActive(uint256 recordId) external view returns (bool);
-    
-    // ============ Admin Functions ============
-    
-    /**
-     * @notice Authorize a research oracle to query data
-     * @param oracle Address of the oracle contract
-     */
-    function authorizeOracle(address oracle) external;
-    
-    /**
-     * @notice Revoke oracle authorization
-     * @param oracle Address of the oracle contract
-     */
-    function revokeOracle(address oracle) external;
-    
-    /**
-     * @notice Grant oracle permission to access specific record's encrypted data
-     * @param recordId The record ID
-     * @param oracle The oracle address
-     */
-    function grantOracleAccess(uint256 recordId, address oracle) external;
-    
-    /**
-     * @notice Batch grant access for multiple records
-     * @param recordIds Array of record IDs
-     * @param oracle The oracle address
-     */
-    function batchGrantOracleAccess(uint256[] calldata recordIds, address oracle) external;
-    
     // ============ View Functions ============
     
     /**

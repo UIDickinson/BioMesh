@@ -124,10 +124,9 @@ contract DataRegistry is SepoliaZamaFHEVMConfig, GatewayCaller {
         ebool validOutcome = TFHE.le(outcome, TFHE.asEuint32(100));
         
         // Both conditions must be true (simplified validation)
-        ebool isValid = TFHE.and(validAge, validOutcome);
-        
-        // In production, you'd decrypt isValid to check, but for demo we proceed
+        // Note: In production, you'd decrypt isValid to check, but for demo we proceed
         // Note: This is a limitation - can't revert based on encrypted condition
+        TFHE.and(validAge, validOutcome); // Combined validation (unused in FHE context)
         
         // Create new record
         uint256 recordId = recordCount++;
@@ -295,4 +294,4 @@ contract DataRegistry is SepoliaZamaFHEVMConfig, GatewayCaller {
      */
     receive() external payable {
         // Silently accept ETH transfers
-    }
+    }}
