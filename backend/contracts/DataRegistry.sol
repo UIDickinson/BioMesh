@@ -258,6 +258,8 @@ contract DataRegistry is SepoliaZamaFHEVMConfig, GatewayCaller {
         TFHE.allow(record.diagnosis, oracle);
         TFHE.allow(record.treatmentOutcome, oracle);
         TFHE.allow(record.biomarker, oracle);
+        
+        emit AccessGranted(recordId, oracle);
     }
     
     /**
@@ -294,4 +296,5 @@ contract DataRegistry is SepoliaZamaFHEVMConfig, GatewayCaller {
      */
     receive() external payable {
         // Silently accept ETH transfers
-    }}
+    }
+}

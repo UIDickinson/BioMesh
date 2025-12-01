@@ -12,7 +12,7 @@ module.exports = {
         runs: 200,
       },
       evmVersion: "cancun",
-      viaIR: true,
+      viaIR: true, // Enable IR-based compiler to fix "stack too deep" errors
     },
   },
   
@@ -37,18 +37,23 @@ module.exports = {
       gasPrice: "auto",
     },
     
-    // Zama fhEVM Devnet (if available)
+    // Zama fhEVM Sepolia Testnet (when available)
     zamaDevnet: {
-      url: process.env.ZAMA_DEVNET_RPC_URL || "https://devnet.zama.ai",
+      url: process.env.ZAMA_RPC_URL || "https://devnet.zama.ai/",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       chainId: 8009,
+      timeout: 120000,
     },
   },
   
+  // Updated Etherscan configuration for API v2
   etherscan: {
-    apiKey: {
-      sepolia: process.env.ETHERSCAN_API_KEY || "",
-    },
+    apiKey: process.env.ETHERSCAN_API_KEY || "",
+  },
+  
+  // Alternative: Sourcify verification (no API key needed)
+  sourcify: {
+    enabled: true
   },
   
   gasReporter: {

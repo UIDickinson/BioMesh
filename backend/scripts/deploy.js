@@ -1,40 +1,34 @@
 const hre = require("hardhat");
-const { ethers } = require("hardhat");
+const fs = require("fs");
 
 async function main() {
-  console.log("🚀 Starting BioMesh deployment...\n");
+  console.log("Deploying BioMesh contracts...");
 
   // Get deployer account
-  const [deployer] = await ethers.getSigners();
-  console.log("📝 Deploying contracts with account:", deployer.address);
-  console.log("💰 Account balance:", ethers.formatEther(await ethers.provider.getBalance(deployer.address)), "ETH\n");
+  const [deployer] = await hre.ethers.getSigners();
+  console.log("Deploying with account:", deployer.address);
 
-  // Deployment parameters
-  const queryFee = ethers.parseEther("0.01"); // 0.01 ETH per query
-  const platformWallet = deployer.address; // Use deployer as platform wallet for testing
-
-  // ============ Deploy DataRegistry ============
-  console.log("📊 Deploying DataRegistry...");
-  const DataRegistry = await ethers.getContractFactory("DataRegistry");
+  // Deploy DataRegistry
+  const DataRegistry = await hre.ethers.getContractFactory("DataRegistry");
   const dataRegistry = await DataRegistry.deploy();
   await dataRegistry.waitForDeployment();
   const dataRegistryAddress = await dataRegistry.getAddress();
-  console.log("✅ DataRegistry deployed to:", dataRegistryAddress);
+  console.log("DataRegistry deployed:", dataRegistryAddress);
 
-  // ============ Deploy PaymentProcessor ============
-  console.log("\n💳 Deploying PaymentProcessor...");
-  const PaymentProcessor = await ethers.getContractFactory("PaymentProcessor");
+  // Deploy PaymentProcessor
+  const platformWallet = deployer.address; // Use deployer as platform wallet
+  const PaymentProcessor = await hre.ethers.getContractFactory("PaymentProcessor");
   const paymentProcessor = await PaymentProcessor.deploy(
     dataRegistryAddress,
     platformWallet
   );
   await paymentProcessor.waitForDeployment();
   const paymentProcessorAddress = await paymentProcessor.getAddress();
-  console.log("✅ PaymentProcessor deployed to:", paymentProcessorAddress);
+  console.log("PaymentProcessor deployed:", paymentProcessorAddress);
 
-  // ============ Deploy ResearchOracle ============
-  console.log("\n🔬 Deploying ResearchOracle...");
-  const ResearchOracle = await ethers.getContractFactory("ResearchOracle");
+  // Deploy ResearchOracle
+  const queryFee = hre.ethers.parseEther("0.01");
+  const ResearchOracle = await hre.ethers.getContractFactory("ResearchOracle");
   const researchOracle = await ResearchOracle.deploy(
     dataRegistryAddress,
     paymentProcessorAddress,
@@ -42,55 +36,25 @@ async function main() {
   );
   await researchOracle.waitForDeployment();
   const researchOracleAddress = await researchOracle.getAddress();
-  console.log("✅ ResearchOracle deployed to:", researchOracleAddress);
+  console.log("ResearchOracle deployed:", researchOracleAddress);
 
-  // ============ Setup Permissions ============
-  console.log("\n🔐 Setting up permissions...");
-  
-  // Authorize ResearchOracle in DataRegistry
-  console.log("   Authorizing ResearchOracle in DataRegistry...");
-  const authTx1 = await dataRegistry.authorizeOracle(researchOracleAddress);
-  await authTx1.wait();
-  console.log("   ✅ ResearchOracle authorized in DataRegistry");
+  // Setup permissions
+  console.log("\nSetting up permissions...");
+  await dataRegistry.authorizeOracle(researchOracleAddress);
+  await paymentProcessor.authorizeOracle(researchOracleAddress);
+  console.log("Permissions configured!");
 
-  // Authorize ResearchOracle in PaymentProcessor
-  console.log("   Authorizing ResearchOracle in PaymentProcessor...");
-  const authTx2 = await paymentProcessor.authorizeOracle(researchOracleAddress);
-  await authTx2.wait();
-  console.log("   ✅ ResearchOracle authorized in PaymentProcessor");
-
-  // ============ Deployment Summary ============
-  console.log("\n" + "=".repeat(60));
-  console.log("📋 DEPLOYMENT SUMMARY");
-  console.log("=".repeat(60));
-  console.log(`
-Network:           ${hre.network.name}
-Chain ID:          ${(await ethers.provider.getNetwork()).chainId}
-Deployer:          ${deployer.address}
-
-Contract Addresses:
-├─ DataRegistry:        ${dataRegistryAddress}
-├─ PaymentProcessor:    ${paymentProcessorAddress}
-└─ ResearchOracle:      ${researchOracleAddress}
-
-Configuration:
-├─ Query Fee:           ${ethers.formatEther(queryFee)} ETH
-├─ Platform Wallet:     ${platformWallet}
-└─ Patient Share:       70%
-
-Next Steps:
-1. Verify contracts on Etherscan (run: npm run verify:sepolia)
-2. Update frontend .env with contract addresses
-3. Test with sample data submission
-4. Fund test accounts for queries
-  `);
-  console.log("=".repeat(60));
+  console.log("\nAll contracts deployed and configured!");
+  console.log("\nContract Addresses:");
+  console.log("- DataRegistry:", dataRegistryAddress);
+  console.log("- PaymentProcessor:", paymentProcessorAddress);
+  console.log("- ResearchOracle:", researchOracleAddress);
 
   // Save deployment info to file
-  const fs = require("fs");
+  const network = await hre.ethers.provider.getNetwork();
   const deploymentInfo = {
     network: hre.network.name,
-    chainId: Number((await ethers.provider.getNetwork()).chainId),
+    chainId: Number(network.chainId),
     deployer: deployer.address,
     timestamp: new Date().toISOString(),
     contracts: {
@@ -104,34 +68,19 @@ Next Steps:
     },
   };
 
+  // Create deployments directory if it doesn't exist
   const deploymentsDir = "./deployments";
   if (!fs.existsSync(deploymentsDir)) {
     fs.mkdirSync(deploymentsDir);
   }
 
+  // Save deployment info
   const filename = `${deploymentsDir}/${hre.network.name}-${Date.now()}.json`;
   fs.writeFileSync(filename, JSON.stringify(deploymentInfo, null, 2));
-  console.log(`\n💾 Deployment info saved to: ${filename}\n`);
-
-  return {
-    dataRegistry,
-    paymentProcessor,
-    researchOracle,
-    addresses: {
-      dataRegistry: dataRegistryAddress,
-      paymentProcessor: paymentProcessorAddress,
-      researchOracle: researchOracleAddress,
-    },
-  };
+  console.log(`\nDeployment info saved to: ${filename}`);
 }
 
-// Execute deployment
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error("❌ Deployment failed:");
-    console.error(error);
-    process.exit(1);
-  });
-
-module.exports = { main };
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
