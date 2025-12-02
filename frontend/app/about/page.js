@@ -126,36 +126,36 @@ export default function AboutPage() {
         <div className="space-y-3 font-mono text-sm">
           <div className="flex flex-col space-y-1">
             <span className="text-gray-600 dark:text-gray-400">DataRegistry:</span>
-            
+            <a
               href="https://sepolia.etherscan.io/address/0xb743ba11eea1aA78911127859550c1c119573cD5"
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary-500 hover:text-primary-600 break-all"
-            
+            >
               0xb743ba11eea1aA78911127859550c1c119573cD5
             </a>
           </div>
 
           <div className="flex flex-col space-y-1">
             <span className="text-gray-600 dark:text-gray-400">PaymentProcessor:</span>
-            
+            <a
               href="https://sepolia.etherscan.io/address/0xaEfa63772566B79AEC9c0BabE2F55d76880b7591"
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary-500 hover:text-primary-600 break-all"
-            
+            >
               0xaEfa63772566B79AEC9c0BabE2F55d76880b7591
             </a>
           </div>
 
           <div className="flex flex-col space-y-1">
             <span className="text-gray-600 dark:text-gray-400">ResearchOracle:</span>
-            
+            <a
               href="https://sepolia.etherscan.io/address/0xe0bfB2eBC8830b7ACD56A317Fc37DE8887743D1b"
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary-500 hover:text-primary-600 break-all"
-            
+            >
               0xe0bfB2eBC8830b7ACD56A317Fc37DE8887743D1b
             </a>
           </div>
