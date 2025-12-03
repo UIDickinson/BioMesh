@@ -5,16 +5,10 @@ import "fhevm/lib/TFHE.sol";
 import "fhevm/config/ZamaFHEVMConfig.sol";
 import "fhevm/gateway/GatewayCaller.sol";
 
-/**
- * @title DataRegistry
- * @notice Stores and manages encrypted patient health data
- * @dev Uses Zama's fhEVM for fully homomorphic encryption
- */
+
 contract DataRegistry is SepoliaZamaFHEVMConfig, GatewayCaller {
     
-    // ============ State Variables ============
     
-    /// @notice Patient health data stored as encrypted integers
     struct HealthRecord {
         euint32 age;              // Encrypted age
         euint32 diagnosis;        // Encrypted diagnosis code
@@ -25,25 +19,18 @@ contract DataRegistry is SepoliaZamaFHEVMConfig, GatewayCaller {
         bool isActive;            // Record active status
     }
     
-    /// @notice Mapping: recordId => HealthRecord
     mapping(uint256 => HealthRecord) public records;
     
-    /// @notice Mapping: patient address => array of recordIds
     mapping(address => uint256[]) private patientRecordIds;
     
-    /// @notice Mapping: diagnosis code => array of recordIds (for efficient querying)
     mapping(uint32 => uint256[]) private diagnosisIndex;
     
-    /// @notice Counter for record IDs
     uint256 public recordCount;
     
-    /// @notice Authorized research oracles
     mapping(address => bool) public authorizedOracles;
     
-    /// @notice Contract owner
     address public owner;
     
-    /// @notice Maximum batch size to prevent DoS attacks
     uint256 public constant MAX_BATCH_SIZE = 100;
     
     /// @notice Submission cooldown per address (rate limiting)
