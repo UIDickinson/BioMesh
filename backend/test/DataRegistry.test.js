@@ -11,6 +11,9 @@ describe("DataRegistry", function () {
     const dataRegistry = await DataRegistry.deploy();
     await dataRegistry.waitForDeployment();
 
+    // Disable cooldown for testing
+    await dataRegistry.updateSubmissionCooldown(0);
+
     return { dataRegistry, owner, patient1, patient2, oracle, unauthorized };
   }
 

@@ -41,6 +41,9 @@ contract PaymentProcessor {
     /// @notice Total distributed to patients
     uint256 public totalDistributed;
     
+    /// @notice Total unclaimed patient earnings (for accurate accounting)
+    uint256 public totalUnclaimed;
+    
     /// @notice Reentrancy guard
     bool private locked;
     
@@ -157,11 +160,20 @@ contract PaymentProcessor {
         
         // Distribute earnings equally among unique patients
         uint256 perPatientShare = patientPool / uniqueCount;
+        uint256 actualDistributed = 0;
         
         for (uint256 i = 0; i < uniqueCount; i++) {
             address patient = uniquePatients[i];
             patientEarnings[patient] += perPatientShare;
+            actualDistributed += perPatientShare;
             emit EarningsDistributed(patient, perPatientShare, recordIds.length);
+        }
+        
+        // Handle dust (remainder from integer division) - give to first patient
+        uint256 dust = patientPool - actualDistributed;
+        if (dust > 0 && uniqueCount > 0) {
+            patientEarnings[uniquePatients[0]] += dust;
+            actualDistributed += dust;
         }
         
         // Transfer platform fee
@@ -170,7 +182,8 @@ contract PaymentProcessor {
         
         // Update tracking
         totalFeesCollected += msg.value;
-        totalDistributed += patientPool;
+        totalDistributed += actualDistributed;
+        totalUnclaimed += actualDistributed;
         researcherSpending[researcher] += msg.value;
         
         emit PaymentReceived(researcher, msg.value, patientPool, platformFee);
@@ -185,6 +198,7 @@ contract PaymentProcessor {
         
         // Reset balance before transfer (checks-effects-interactions)
         patientEarnings[msg.sender] = 0;
+        totalUnclaimed -= amount;
         
         // Transfer earnings
         (bool success, ) = msg.sender.call{value: amount}("");
@@ -276,11 +290,10 @@ contract PaymentProcessor {
      */
     function emergencyWithdraw() external onlyOwner {
         uint256 contractBalance = address(this).balance;
-        uint256 allocatedToPatients = totalDistributed;
         
-        // Calculate withdrawable amount (contract balance minus allocated funds)
-        uint256 withdrawable = contractBalance > allocatedToPatients 
-            ? contractBalance - allocatedToPatients 
+        // Calculate withdrawable amount (contract balance minus unclaimed patient funds)
+        uint256 withdrawable = contractBalance > totalUnclaimed 
+            ? contractBalance - totalUnclaimed 
             : 0;
         
         require(withdrawable > 0, "No withdrawable funds");
@@ -303,13 +316,15 @@ contract PaymentProcessor {
         returns (
             uint256 totalFees,
             uint256 totalDist,
-            uint256 contractBal
+            uint256 contractBal,
+            uint256 unclaimed
         ) 
     {
         return (
             totalFeesCollected,
             totalDistributed,
-            address(this).balance
+            address(this).balance,
+            totalUnclaimed
         );
     }
     

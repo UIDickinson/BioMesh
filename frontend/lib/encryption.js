@@ -13,11 +13,11 @@ import { ethers } from 'ethers';
  * 
  * To switch to production:
  * 1. Deploy contracts with real @fhevm/solidity package
- * 2. Set USE_REAL_FHE = true here
- * 3. Set USE_PRODUCTION_ABI = true in contracts.js
+ * 2. Set NEXT_PUBLIC_USE_REAL_FHE=true in .env.local
+ * 3. Set NEXT_PUBLIC_USE_PRODUCTION_ABI=true in .env.local
  * 4. Update contract addresses in .env.local
  */
-const USE_REAL_FHE = false;
+const USE_REAL_FHE = process.env.NEXT_PUBLIC_USE_REAL_FHE === 'true';
 
 // Export mode for other modules to check
 export const isRealFHEMode = () => USE_REAL_FHE;

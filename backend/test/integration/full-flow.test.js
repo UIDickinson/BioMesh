@@ -12,6 +12,9 @@ describe("BioMesh Integration Tests", function () {
     const dataRegistry = await DataRegistry.deploy();
     await dataRegistry.waitForDeployment();
 
+    // Disable cooldown for testing
+    await dataRegistry.updateSubmissionCooldown(0);
+
     // Deploy PaymentProcessor
     const PaymentProcessor = await ethers.getContractFactory("PaymentProcessor");
     const paymentProcessor = await PaymentProcessor.deploy(

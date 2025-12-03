@@ -93,29 +93,71 @@ contract ResearchOracle is SepoliaZamaFHEVMConfig, GatewayCaller {
     
     // ============ Core Query Functions ============
     
+    /// @notice Maximum records per query batch to prevent gas limit issues
+    uint256 public constant MAX_QUERY_BATCH = 50;
+    
     /**
      * @notice Compute average biomarker for patients matching criteria
      * @param minAge Minimum age (plaintext for simplicity)
      * @param maxAge Maximum age
      * @param diagnosisCode Target diagnosis code
      * @return queryId The ID of the query for result retrieval
+     * @dev For large datasets, use computeAverageBiomarkerPaginated
      */
     function computeAverageBiomarker(
         uint32 minAge,
         uint32 maxAge,
         uint32 diagnosisCode
     ) external payable validPayment returns (uint256) {
+        return _computeAverageBiomarkerRange(minAge, maxAge, diagnosisCode, 0, MAX_QUERY_BATCH);
+    }
+    
+    /**
+     * @notice Compute average biomarker with pagination for large datasets
+     * @param minAge Minimum age
+     * @param maxAge Maximum age
+     * @param diagnosisCode Target diagnosis code
+     * @param startIndex Starting record index
+     * @param batchSize Number of records to process (max MAX_QUERY_BATCH)
+     * @return queryId The ID of the query for result retrieval
+     */
+    function computeAverageBiomarkerPaginated(
+        uint32 minAge,
+        uint32 maxAge,
+        uint32 diagnosisCode,
+        uint256 startIndex,
+        uint256 batchSize
+    ) external payable validPayment returns (uint256) {
+        require(batchSize <= MAX_QUERY_BATCH, "Batch size exceeds limit");
+        return _computeAverageBiomarkerRange(minAge, maxAge, diagnosisCode, startIndex, batchSize);
+    }
+    
+    /**
+     * @notice Internal function to compute average biomarker over a range
+     */
+    function _computeAverageBiomarkerRange(
+        uint32 minAge,
+        uint32 maxAge,
+        uint32 diagnosisCode,
+        uint256 startIndex,
+        uint256 batchSize
+    ) internal returns (uint256) {
         
         // Initialize accumulators
         euint64 sum = TFHE.asEuint64(0);
         euint32 count = TFHE.asEuint32(0);
         
         uint256 totalRecords = dataRegistry.recordCount();
-        uint256[] memory usedRecords = new uint256[](totalRecords);
+        uint256 endIndex = startIndex + batchSize;
+        if (endIndex > totalRecords) {
+            endIndex = totalRecords;
+        }
+        
+        uint256[] memory usedRecords = new uint256[](batchSize);
         uint256 usedCount = 0;
         
-        // Iterate through all records
-        for (uint256 i = 0; i < totalRecords; i++) {
+        // Iterate through records in range
+        for (uint256 i = startIndex; i < endIndex; i++) {
             (
                 euint32 age,
                 euint32 diagnosis,
@@ -203,18 +245,54 @@ contract ResearchOracle is SepoliaZamaFHEVMConfig, GatewayCaller {
      * @param diagnosisCode Target diagnosis code
      * @param minOutcome Minimum treatment outcome score
      * @return queryId The ID of the query
+     * @dev For large datasets, use countPatientsByCriteriaPaginated
      */
     function countPatientsByCriteria(
         uint32 diagnosisCode,
         uint32 minOutcome
     ) external payable validPayment returns (uint256) {
+        return _countPatientsByCriteriaRange(diagnosisCode, minOutcome, 0, MAX_QUERY_BATCH);
+    }
+    
+    /**
+     * @notice Count patients with pagination for large datasets
+     * @param diagnosisCode Target diagnosis code
+     * @param minOutcome Minimum treatment outcome score
+     * @param startIndex Starting record index
+     * @param batchSize Number of records to process (max MAX_QUERY_BATCH)
+     * @return queryId The ID of the query
+     */
+    function countPatientsByCriteriaPaginated(
+        uint32 diagnosisCode,
+        uint32 minOutcome,
+        uint256 startIndex,
+        uint256 batchSize
+    ) external payable validPayment returns (uint256) {
+        require(batchSize <= MAX_QUERY_BATCH, "Batch size exceeds limit");
+        return _countPatientsByCriteriaRange(diagnosisCode, minOutcome, startIndex, batchSize);
+    }
+    
+    /**
+     * @notice Internal function to count patients over a range
+     */
+    function _countPatientsByCriteriaRange(
+        uint32 diagnosisCode,
+        uint32 minOutcome,
+        uint256 startIndex,
+        uint256 batchSize
+    ) internal returns (uint256) {
         
         euint32 count = TFHE.asEuint32(0);
         uint256 totalRecords = dataRegistry.recordCount();
-        uint256[] memory usedRecords = new uint256[](totalRecords);
+        uint256 endIndex = startIndex + batchSize;
+        if (endIndex > totalRecords) {
+            endIndex = totalRecords;
+        }
+        
+        uint256[] memory usedRecords = new uint256[](batchSize);
         uint256 usedCount = 0;
         
-        for (uint256 i = 0; i < totalRecords; i++) {
+        for (uint256 i = startIndex; i < endIndex; i++) {
             (
                 ,
                 euint32 diagnosis,

@@ -1,35 +1,61 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useWallet } from '@/hooks/useWallet';
+import { useDataRegistry } from '@/hooks/useDataRegistry';
+import { usePaymentProcessor } from '@/hooks/usePaymentProcessor';
 import StatsCard from '@/components/StatsCard';
-import { FileText, Coins, Database, ArrowRight } from 'lucide-react';
+import { FileText, Coins, Database, ArrowRight, User } from 'lucide-react';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function PatientDashboardContent() {
-  const [wallet, setWallet] = useState(null);
-  const [records, setRecords] = useState([]);
+  const { signer, address, isConnected } = useWallet();
+  const { getPatientRecords } = useDataRegistry(signer);
+  const { getPatientEarnings } = usePaymentProcessor(signer);
+  
+  const [recordCount, setRecordCount] = useState(0);
   const [earnings, setEarnings] = useState('0');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    // Load hooks only after component mounts
-    loadDashboard();
-  }, []);
-
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
+    if (!signer || !address) return;
+    
+    setLoading(true);
     try {
-      // Lazy load wallet hook
-      const { useWallet } = await import('@/hooks/useWallet');
-      // Note: We can't use hooks after they're loaded in useEffect
-      // So we need to restructure this differently
+      const [records, earningsData] = await Promise.all([
+        getPatientRecords(address),
+        getPatientEarnings(address)
+      ]);
       
-      setLoading(false);
+      setRecordCount(records?.length || 0);
+      setEarnings(parseFloat(earningsData || '0').toFixed(6));
     } catch (error) {
       console.error('Failed to load dashboard:', error);
+    } finally {
       setLoading(false);
     }
-  };
+  }, [signer, address, getPatientRecords, getPatientEarnings]);
+
+  useEffect(() => {
+    if (isConnected && signer && address) {
+      loadDashboard();
+    }
+  }, [isConnected, signer, address, loadDashboard]);
+
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-black p-4 md:p-8">
+        <div className="max-w-7xl mx-auto text-center py-20">
+          <User className="h-20 w-20 text-primary-500 mx-auto mb-6" />
+          <h1 className="text-4xl font-bold mb-4">Patient Portal</h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-8">
+            Connect your wallet to access your patient dashboard
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-black p-4 md:p-8">
@@ -44,26 +70,27 @@ export default function PatientDashboardContent() {
           </p>
         </div>
 
-        {/* Loading State */}
-        {loading && <LoadingSpinner />}
-
         {/* Stats Cards */}
-        {!loading && (
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <LoadingSpinner />
+          </div>
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
             <StatsCard
               icon={FileText}
               title="Records Submitted"
-              value={records.length.toString()}
+              value={recordCount.toString()}
             />
             <StatsCard
               icon={Coins}
               title="Total Earnings"
-              value={`$${earnings}`}
+              value={`${earnings} ETH`}
             />
             <StatsCard
               icon={Database}
-              title="Active Studies"
-              value="3"
+              title="Status"
+              value={recordCount > 0 ? 'Active' : 'No Records'}
             />
           </div>
         )}

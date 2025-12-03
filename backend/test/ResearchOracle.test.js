@@ -12,6 +12,9 @@ describe("ResearchOracle", function () {
     const dataRegistry = await DataRegistry.deploy();
     await dataRegistry.waitForDeployment();
 
+    // Disable cooldown for testing
+    await dataRegistry.updateSubmissionCooldown(0);
+
     // Submit test records
     const encryptedAge = ethers.zeroPadValue("0x01", 32);
     const encryptedDiagnosis = ethers.zeroPadValue("0x02", 32);

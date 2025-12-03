@@ -46,6 +46,12 @@ contract DataRegistry is SepoliaZamaFHEVMConfig, GatewayCaller {
     /// @notice Maximum batch size to prevent DoS attacks
     uint256 public constant MAX_BATCH_SIZE = 100;
     
+    /// @notice Submission cooldown per address (rate limiting)
+    mapping(address => uint256) public lastSubmission;
+    
+    /// @notice Cooldown period between submissions (1 hour)
+    uint256 public submissionCooldown = 1 hours;
+    
     // ============ Events ============
     
     event RecordSubmitted(
@@ -104,6 +110,13 @@ contract DataRegistry is SepoliaZamaFHEVMConfig, GatewayCaller {
         einput encryptedBiomarker,
         bytes calldata inputProof
     ) external returns (uint256) {
+        
+        // Rate limiting: enforce cooldown period between submissions
+        require(
+            block.timestamp >= lastSubmission[msg.sender] + submissionCooldown,
+            "Submission cooldown active. Please wait before submitting again."
+        );
+        lastSubmission[msg.sender] = block.timestamp;
         
         // Verify and convert encrypted inputs
         euint32 age = TFHE.asEuint32(encryptedAge, inputProof);
@@ -190,6 +203,40 @@ contract DataRegistry is SepoliaZamaFHEVMConfig, GatewayCaller {
     }
     
     /**
+     * @notice Get patient's record IDs with pagination
+     * @param patient The patient's address
+     * @param offset Starting index
+     * @param limit Maximum number of records to return
+     * @return Array of record IDs, total count of patient's records
+     */
+    function getPatientRecordsPaginated(
+        address patient,
+        uint256 offset,
+        uint256 limit
+    ) external view returns (uint256[] memory, uint256) {
+        uint256[] storage allRecords = patientRecordIds[patient];
+        uint256 totalCount = allRecords.length;
+        
+        if (offset >= totalCount) {
+            return (new uint256[](0), totalCount);
+        }
+        
+        uint256 endIndex = offset + limit;
+        if (endIndex > totalCount) {
+            endIndex = totalCount;
+        }
+        
+        uint256 resultLength = endIndex - offset;
+        uint256[] memory result = new uint256[](resultLength);
+        
+        for (uint256 i = 0; i < resultLength; i++) {
+            result[i] = allRecords[offset + i];
+        }
+        
+        return (result, totalCount);
+    }
+    
+    /**
      * @notice Get record details (only accessible by patient or authorized oracle)
      * @param recordId The record ID
      * @return HealthRecord struct
@@ -239,6 +286,14 @@ contract DataRegistry is SepoliaZamaFHEVMConfig, GatewayCaller {
     function revokeOracle(address oracle) external onlyOwner {
         authorizedOracles[oracle] = false;
         emit OracleRevoked(oracle);
+    }
+    
+    /**
+     * @notice Update submission cooldown period
+     * @param newCooldown New cooldown period in seconds
+     */
+    function updateSubmissionCooldown(uint256 newCooldown) external onlyOwner {
+        submissionCooldown = newCooldown;
     }
     
     /**

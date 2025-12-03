@@ -1,18 +1,52 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useWallet } from '@/hooks/useWallet';
 import { useResearchOracle } from '@/hooks/useResearchOracle';
-import { ArrowLeft, Search, Lock } from 'lucide-react';
-import { formatTimestamp, formatAddress } from '@/lib/utils';
+import { ArrowLeft, Search, Lock, RefreshCw } from 'lucide-react';
+import { formatTimestamp } from '@/lib/utils';
 import Link from 'next/link';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function ResultsPage() {
   const { signer, address, isConnected } = useWallet();
-  const { getQueryResult } = useResearchOracle(signer);
+  const { getResearcherQueries, getQueryResult } = useResearchOracle(signer);
   const [queries, setQueries] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const loadQueries = useCallback(async () => {
+    if (!signer || !address) return;
+    
+    setLoading(true);
+    try {
+      const queryIds = await getResearcherQueries(address);
+      
+      // Fetch details for each query
+      const queryDetails = await Promise.all(
+        queryIds.map(async (id) => {
+          const result = await getQueryResult(id);
+          return result ? { id, ...result } : null;
+        })
+      );
+      
+      // Filter out nulls and sort by timestamp (newest first)
+      const validQueries = queryDetails
+        .filter(q => q !== null)
+        .sort((a, b) => b.timestamp - a.timestamp);
+      
+      setQueries(validQueries);
+    } catch (err) {
+      console.error('Error loading queries:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [signer, address, getResearcherQueries, getQueryResult]);
+
+  useEffect(() => {
+    if (isConnected && signer && address) {
+      loadQueries();
+    }
+  }, [isConnected, signer, address, loadQueries]);
 
   if (!isConnected) {
     return (
@@ -34,11 +68,20 @@ export default function ResultsPage() {
         <span>Back to Dashboard</span>
       </Link>
 
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Query Results</h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          View your executed queries and encrypted results
-        </p>
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-4xl font-bold mb-2">Query Results</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            View your executed queries and encrypted results
+          </p>
+        </div>
+        <button
+          onClick={loadQueries}
+          disabled={loading}
+          className="p-2 rounded-lg bg-primary-500/10 hover:bg-primary-500/20 text-primary-500 transition-all disabled:opacity-50"
+        >
+          <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+        </button>
       </div>
 
       {loading ? (
@@ -56,9 +99,9 @@ export default function ResultsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {queries.map((query, index) => (
+          {queries.map((query) => (
             <div
-              key={index}
+              key={query.id}
               className="card-3d p-6 glass-morphism rounded-xl border border-primary-500/20"
             >
               <div className="flex justify-between items-start mb-4">
@@ -68,25 +111,26 @@ export default function ResultsPage() {
                     Executed: {formatTimestamp(query.timestamp)}
                   </p>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-sm ${
-                  query.isComplete
-                    ? 'bg-green-500/20 text-green-600 dark:text-green-400'
-                    : 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400'
-                }`}>
-                  {query.isComplete ? 'Complete' : 'Processing'}
+                <span className="px-3 py-1 rounded-full text-sm bg-green-500/20 text-green-600 dark:text-green-400">
+                  Complete
                 </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Records Processed</p>
+                  <p className="font-semibold">{query.recordCount}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Status</p>
+                  <p className="font-semibold">{query.isDecrypted ? 'Decrypted' : 'Encrypted'}</p>
+                </div>
               </div>
 
               <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
                 <Lock className="h-4 w-4" />
-                <span>Encrypted result available</span>
+                <span>Encrypted result stored on-chain</span>
               </div>
-
-              {query.isComplete && (
-                <button className="mt-4 px-4 py-2 bg-primary-500/10 hover:bg-primary-500/20 text-primary-500 rounded-lg transition-all text-sm">
-                  Decrypt Result
-                </button>
-              )}
             </div>
           ))}
         </div>

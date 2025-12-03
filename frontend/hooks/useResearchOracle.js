@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { CONTRACTS } from '@/lib/contracts';
 
@@ -8,16 +8,16 @@ export function useResearchOracle(signer) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const getContract = () => {
+  const getContract = useCallback(() => {
     if (!signer) throw new Error('No signer available');
     return new ethers.Contract(
       CONTRACTS.ResearchOracle.address,
       CONTRACTS.ResearchOracle.abi,
       signer
     );
-  };
+  }, [signer]);
 
-  const getQueryFee = async () => {
+  const getQueryFee = useCallback(async () => {
     try {
       const contract = getContract();
       const fee = await contract.queryFee();
@@ -25,7 +25,29 @@ export function useResearchOracle(signer) {
     } catch (err) {
       return '0.01';
     }
-  };
+  }, [getContract]);
+
+  const getTotalQueries = useCallback(async () => {
+    try {
+      const contract = getContract();
+      const total = await contract.getTotalQueries();
+      return Number(total);
+    } catch (err) {
+      console.error('Error getting total queries:', err);
+      return 0;
+    }
+  }, [getContract]);
+
+  const getResearcherQueries = useCallback(async (researcherAddress) => {
+    try {
+      const contract = getContract();
+      const queryIds = await contract.getResearcherQueries(researcherAddress);
+      return queryIds.map(id => Number(id));
+    } catch (err) {
+      console.error('Error getting researcher queries:', err);
+      return [];
+    }
+  }, [getContract]);
 
   const computeAverageBiomarker = async (minAge, maxAge, diagnosisCode) => {
     setIsLoading(true);
@@ -90,26 +112,31 @@ export function useResearchOracle(signer) {
     }
   };
 
-  const getQueryResult = async (queryId) => {
+  const getQueryResult = useCallback(async (queryId) => {
     try {
       const contract = getContract();
-      const result = await contract.getQueryResult(queryId);
+      const result = await contract.queryResults(queryId);
       return {
-        researcher: result.researcher,
-        timestamp: Number(result.timestamp),
-        isComplete: result.isComplete,
+        queryId: Number(result.queryId || result[0]),
+        researcher: result.researcher || result[1],
+        recordCount: Number(result.recordCount || result[2]),
+        timestamp: Number(result.timestamp || result[5]),
+        isDecrypted: result.isDecrypted || result[6] || false,
       };
     } catch (err) {
+      console.error('Error getting query result:', err);
       setError(err.message);
       return null;
     }
-  };
+  }, [getContract]);
 
   return {
     computeAverageBiomarker,
     countPatientsByCriteria,
     getQueryResult,
     getQueryFee,
+    getTotalQueries,
+    getResearcherQueries,
     isLoading,
     error,
   };

@@ -18,13 +18,17 @@
 ### ✅ What's Working
 | Component | Status | Details |
 |-----------|--------|---------|
-| Next.js Frontend | ✅ Working | All routes compile, hot reload works |
+| Next.js Frontend | ✅ Working | All 13 routes compile, hot reload works |
+| Smart Contracts | ✅ Working | 8 contracts compiled, 78 tests passing |
 | React Hooks | ✅ Fixed | No more "Invalid hook call" errors |
 | Tailwind CSS | ✅ Working | Theme variables configured |
 | Wallet Connection | ✅ Working | MetaMask connects, state shared across app |
 | WASM Bundling | ✅ Fixed | Excluded from webpack, loads at runtime |
-| FHE SDK Import | ✅ Working | `@zama-fhe/relayer-sdk@0.3.0-5` with `initSDK()` + `SepoliaConfig` |
+| FHE SDK Import | ✅ Working | `@zama-fhe/relayer-sdk@0.3.0-6` with `initSDK()` + `SepoliaConfig` |
 | FHE Encryption | ✅ Working | SDK initializes, encrypts data successfully |
+| Patient Dashboard | ✅ Working | Records count, earnings display correctly |
+| Researcher Dashboard | ✅ Working | Query stats, spending, results all display |
+| Payment Distribution | ✅ Working | Multi-user support, dust handling, reentrancy protection |
 | Form Submission | ⚠️ Mock Mode | Works with mock contracts (see note below) |
 
 ### ⚠️ Important: Mock vs Production Mode
@@ -34,9 +38,16 @@ The **backend contracts were deployed with a MOCK TFHE library** (stubs for loca
 - **Mock Mode (Current):** Frontend uses simulated encryption, data is NOT actually encrypted on-chain
 - **Production Mode:** Requires redeploying contracts with real `@fhevm/solidity` package
 
-To switch modes, edit `frontend/lib/encryption.js`:
+To switch modes, update TWO files:
+
+1. `frontend/lib/encryption.js`:
 ```javascript
 const USE_REAL_FHE = false;  // Set to true after deploying real FHEVM contracts
+```
+
+2. `frontend/.env.local`:
+```env
+NEXT_PUBLIC_USE_PRODUCTION_ABI=false  # Set to true for production
 ```
 
 ---
@@ -660,6 +671,49 @@ config.ignoreWarnings = [
 **Cause:** `components/RecordCard.js` file was empty.
 
 **Solution:** Create the RecordCard component with proper export.
+
+### Issue 11: Dashboard Stats Not Updating
+**Error:** Patient dashboard shows 0 records despite having records in "View Records"
+
+**Cause:** `patient-dashboard-content.js` tried to lazy-load React hooks inside `useEffect`, which doesn't work.
+
+**Solution:** Import hooks at component top level and fetch data properly:
+```javascript
+import { useWallet } from '@/hooks/useWallet';
+import { useDataRegistry } from '@/hooks/useDataRegistry';
+import { usePaymentProcessor } from '@/hooks/usePaymentProcessor';
+
+export default function PatientDashboardContent() {
+  const { signer, address, isConnected } = useWallet();
+  const { getPatientRecords } = useDataRegistry(signer);
+  const { getPatientEarnings } = usePaymentProcessor(signer);
+  // ... fetch data in useEffect with proper dependencies
+}
+```
+
+### Issue 12: Researcher Query Results Not Displaying
+**Error:** Researcher results/spending pages show empty even after executing queries
+
+**Cause:** Missing hook functions and pages didn't fetch data from contracts.
+
+**Solution:** 
+1. Added `getResearcherQueries()`, `getTotalQueries()` to `useResearchOracle.js`
+2. Added `getResearcherSpending()`, `getStats()` to `usePaymentProcessor.js`
+3. Added `queryResults` mapping to ABI in `contracts.js`
+4. Updated researcher pages to fetch and display real data
+
+### Issue 13: Payment Dust (Integer Division Remainder)
+**Issue:** Integer division can leave tiny amounts stuck in contract
+
+**Example:** 0.007 ETH / 3 patients = 0.00233... ETH each, 0.00001 ETH stuck
+
+**Solution:** Added dust handling in `PaymentProcessor.sol`:
+```solidity
+uint256 dust = patientPool - actualDistributed;
+if (dust > 0 && uniqueCount > 0) {
+    patientEarnings[uniquePatients[0]] += dust;
+}
+```
 
 ---
 

@@ -9,8 +9,8 @@
  * Current deployment uses: MOCK (uint256)
  */
 
-// Mode flag - should match USE_REAL_FHE in encryption.js
-const USE_PRODUCTION_ABI = false;
+// Mode flag - should match NEXT_PUBLIC_USE_REAL_FHE in .env.local
+const USE_PRODUCTION_ABI = process.env.NEXT_PUBLIC_USE_PRODUCTION_ABI === 'true';
 
 // ABI for submitHealthData - MOCK mode (einput = uint256)
 const SUBMIT_HEALTH_DATA_MOCK = {
@@ -138,7 +138,8 @@ export const CONTRACTS = {
         "outputs": [
           { "internalType": "uint256", "name": "totalFees", "type": "uint256" },
           { "internalType": "uint256", "name": "totalDist", "type": "uint256" },
-          { "internalType": "uint256", "name": "contractBal", "type": "uint256" }
+          { "internalType": "uint256", "name": "contractBal", "type": "uint256" },
+          { "internalType": "uint256", "name": "unclaimed", "type": "uint256" }
         ],
         "stateMutability": "view",
         "type": "function"
@@ -220,6 +221,21 @@ export const CONTRACTS = {
         "inputs": [],
         "name": "getTotalQueries",
         "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+        "name": "queryResults",
+        "outputs": [
+          { "internalType": "uint256", "name": "queryId", "type": "uint256" },
+          { "internalType": "address", "name": "researcher", "type": "address" },
+          { "internalType": "uint256", "name": "recordCount", "type": "uint256" },
+          { "internalType": "uint256", "name": "encryptedSum", "type": "uint256" },
+          { "internalType": "uint256", "name": "encryptedCount", "type": "uint256" },
+          { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
+          { "internalType": "bool", "name": "isDecrypted", "type": "bool" }
+        ],
         "stateMutability": "view",
         "type": "function"
       },

@@ -1,19 +1,53 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useWallet } from '@/hooks/useWallet';
+import { useResearchOracle } from '@/hooks/useResearchOracle';
+import { usePaymentProcessor } from '@/hooks/usePaymentProcessor';
 import Link from 'next/link';
 import StatsCard from '@/components/StatsCard';
 import { FlaskConical, Search, TrendingUp, ArrowRight } from 'lucide-react';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function ResearcherDashboard() {
-  const { isConnected } = useWallet();
+  const { signer, address, isConnected } = useWallet();
+  const { getResearcherQueries, getTotalQueries } = useResearchOracle(signer);
+  const { getResearcherSpending } = usePaymentProcessor(signer);
   const [stats, setStats] = useState({
     totalQueries: 0,
-    activeQueries: 0,
+    myQueries: 0,
     totalSpent: '0.00'
   });
+  const [loading, setLoading] = useState(false);
+
+  const loadStats = useCallback(async () => {
+    if (!signer || !address) return;
+    
+    setLoading(true);
+    try {
+      const [myQueryIds, totalQueries, spending] = await Promise.all([
+        getResearcherQueries(address),
+        getTotalQueries(),
+        getResearcherSpending(address)
+      ]);
+      
+      setStats({
+        totalQueries: totalQueries,
+        myQueries: myQueryIds.length,
+        totalSpent: parseFloat(spending).toFixed(4)
+      });
+    } catch (err) {
+      console.error('Error loading stats:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [signer, address, getResearcherQueries, getTotalQueries, getResearcherSpending]);
+
+  useEffect(() => {
+    if (isConnected && signer && address) {
+      loadStats();
+    }
+  }, [isConnected, signer, address, loadStats]);
 
   if (!isConnected) {
     return (
@@ -36,24 +70,30 @@ export default function ResearcherDashboard() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-        <StatsCard
-          title="Total Queries"
-          value={stats.totalQueries}
-          icon={Search}
-        />
-        <StatsCard
-          title="Active Queries"
-          value={stats.activeQueries}
-          icon={FlaskConical}
-          gradient
-        />
-        <StatsCard
-          title="Total Spent"
-          value={`${stats.totalSpent} ETH`}
-          icon={TrendingUp}
-        />
-      </div>
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <LoadingSpinner size="lg" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <StatsCard
+            title="Platform Queries"
+            value={stats.totalQueries}
+            icon={Search}
+          />
+          <StatsCard
+            title="My Queries"
+            value={stats.myQueries}
+            icon={FlaskConical}
+            gradient
+          />
+          <StatsCard
+            title="Total Spent"
+            value={`${stats.totalSpent} ETH`}
+            icon={TrendingUp}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Link
