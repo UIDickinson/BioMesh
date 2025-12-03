@@ -443,6 +443,9 @@ export async function encryptHealthData(contractAddress, userAddress, data) {
 
 #### `frontend/lib/contracts.js`
 ```javascript
+// Mode flag - should match USE_REAL_FHE in encryption.js
+const USE_PRODUCTION_ABI = false;
+
 export const CONTRACTS = {
   DataRegistry: {
     address: process.env.NEXT_PUBLIC_DATA_REGISTRY_ADDRESS,
@@ -461,13 +464,26 @@ export const CONTRACTS = {
         "stateMutability": "nonpayable",
         "type": "function"
       },
-      // For PRODUCTION contracts, change uint256 to bytes32:
-      // { "internalType": "bytes32", "name": "encryptedAge", "type": "bytes32" },
-      
+      // IMPORTANT: records() returns ALL 7 struct fields
+      {
+        "inputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+        "name": "records",
+        "outputs": [
+          { "internalType": "uint256", "name": "age", "type": "uint256" },
+          { "internalType": "uint256", "name": "diagnosis", "type": "uint256" },
+          { "internalType": "uint256", "name": "treatmentOutcome", "type": "uint256" },
+          { "internalType": "uint256", "name": "biomarker", "type": "uint256" },
+          { "internalType": "address", "name": "patient", "type": "address" },
+          { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
+          { "internalType": "bool", "name": "isActive", "type": "bool" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
       "function revokeRecord(uint256 recordId) external",
       "function getPatientRecords(address patient) external view returns (uint256[] memory)",
-      "function records(uint256) external view returns (address patient, uint256 timestamp, bool isActive)",
-      "event HealthDataSubmitted(uint256 indexed recordId, address indexed patient, uint256 timestamp)",
+      "function recordCount() external view returns (uint256)",
+      "event RecordSubmitted(uint256 indexed recordId, address indexed patient, uint256 timestamp)",
       "event RecordRevoked(uint256 indexed recordId, address indexed patient)"
     ]
   },
@@ -476,6 +492,7 @@ export const CONTRACTS = {
     abi: [
       "function getPatientEarnings(address patient) external view returns (uint256)",
       "function withdrawEarnings() external",
+      "function getResearcherSpending(address researcher) external view returns (uint256)",
       "event EarningsDistributed(address indexed patient, uint256 amount)",
       "event EarningsWithdrawn(address indexed patient, uint256 amount)"
     ]
@@ -485,10 +502,11 @@ export const CONTRACTS = {
     abi: [
       "function computeAverageBiomarker(uint32 minAge, uint32 maxAge, uint32 diagnosisCode) external payable returns (uint256)",
       "function countPatientsByCriteria(uint32 diagnosisCode, uint32 minOutcome) external payable returns (uint256)",
-      "function getQueryResult(uint256 queryId) external view returns (address researcher, uint256 timestamp, bool isComplete)",
+      "function getQueryResult(uint256 queryId) external view returns (uint256, address, uint256, uint256, bool)",
+      "function getResearcherQueries(address researcher) external view returns (uint256[] memory)",
       "function queryFee() external view returns (uint256)",
-      "event QueryExecuted(uint256 indexed queryId, address indexed researcher, uint256 timestamp)",
-      "event QueryCompleted(uint256 indexed queryId, uint256 resultCount)"
+      "function getTotalQueries() external view returns (uint256)",
+      "event QueryExecuted(uint256 indexed queryId, address indexed researcher, uint256 timestamp)"
     ]
   }
 };
@@ -496,7 +514,7 @@ export const CONTRACTS = {
 export const CHAIN_CONFIG = {
   chainId: parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '11155111'),
   chainName: 'Sepolia',
-  rpcUrl: process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL,
+  rpcUrl: process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://rpc.sepolia.org',
   blockExplorer: 'https://sepolia.etherscan.io'
 };
 ```
