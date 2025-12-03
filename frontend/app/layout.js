@@ -1,6 +1,7 @@
 import { Inter } from 'next/font/google';
 import './globals.css';
-import Navbar from '@/components/Navbar';
+import Navbar from '@/components/Navabar';
+import { WalletProvider } from '@/contexts/WalletContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -13,10 +14,12 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-black min-h-screen text-gray-900 dark:text-gray-100`}>
-        <Navbar />
-        <main className="min-h-[calc(100vh-4rem)]">
-          {children}
-        </main>
+        <WalletProvider>
+          <Navbar />
+          <main className="min-h-[calc(100vh-4rem)]">
+            {children}
+          </main>
+        </WalletProvider>
         <footer className="border-t border-primary-500/20 py-8 mt-20">
           <div className="max-w-7xl mx-auto px-4 text-center text-sm text-gray-600 dark:text-gray-400">
             <p>BioMesh - Built for Zama Developer Program</p>

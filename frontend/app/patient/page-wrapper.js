@@ -4,15 +4,13 @@ import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
-const ViewRecordsPageContent = dynamic(
-  () => import('./records-content'),
-  { 
-    loading: () => <LoadingSpinner />,
-    ssr: false
-  }
+// Dynamically import the main dashboard component to delay hook imports
+const PatientDashboardContent = dynamic(
+  () => import('./patient-dashboard-content'),
+  { loading: () => <LoadingSpinner /> }
 );
 
-export default function RecordsPage() {
+export default function PatientDashboard() {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -23,5 +21,5 @@ export default function RecordsPage() {
     return <LoadingSpinner />;
   }
 
-  return <ViewRecordsPageContent />;
+  return <PatientDashboardContent />;
 }
