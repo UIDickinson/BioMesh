@@ -177,7 +177,7 @@ Contents:
 5. Open a Pull Request
 
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [Zama](https://www.zama.ai/) - FHE technology and FHEVM
 - [Hardhat](https://hardhat.org/) - Ethereum development environment
