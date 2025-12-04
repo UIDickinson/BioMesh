@@ -433,21 +433,34 @@ contract ResearchOracle is ZamaEthereumConfig {
     // ============ Decryption Functions ============
     
     /**
-     * @notice Request decryption of query results
+     * @notice Get encrypted handles for client-side User Decryption
+     * @param queryId The query ID
+     * @return sumHandle The encrypted sum handle (for client-side decryption)
+     * @return countHandle The encrypted count handle (for client-side decryption)
+     * @dev User Decryption via @zama-fhe/relayer-sdk is instant (2-5 seconds)
+     *      The researcher signs an EIP-712 message and the SDK decrypts client-side
+     *      FHE.allow(researcher) was already called when query was executed
+     */
+    function getEncryptedHandles(uint256 queryId) 
+        external 
+        view 
+        returns (euint64 sumHandle, euint32 countHandle) 
+    {
+        QueryResult storage result = queryResults[queryId];
+        require(result.researcher == msg.sender, "Not your query");
+        return (result.encryptedSum, result.encryptedCount);
+    }
+    
+    /**
+     * @notice Legacy: Request decryption (kept for backward compatibility)
      * @param queryId The query ID to decrypt
-     * @dev Marks the encrypted values as publicly decryptable
-     *      The actual decryption happens off-chain via the Gateway
+     * @dev With User Decryption, this is no longer needed - decryption happens client-side
+     *      Kept to emit event for tracking purposes
      */
     function requestDecryption(uint256 queryId) external {
         QueryResult storage result = queryResults[queryId];
         require(result.researcher == msg.sender, "Not your query");
-        require(!result.isDecrypted, "Already decrypted");
         require(!decryptionRequested[queryId], "Decryption already requested");
-        
-        // Mark values as publicly decryptable
-        // This allows the Gateway to decrypt them
-        FHE.makePubliclyDecryptable(result.encryptedSum);
-        FHE.makePubliclyDecryptable(result.encryptedCount);
         
         decryptionRequested[queryId] = true;
         

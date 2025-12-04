@@ -120,6 +120,8 @@ export function useResearchOracle(signer) {
         queryId: Number(result.queryId || result[0]),
         researcher: result.researcher || result[1],
         recordCount: Number(result.recordCount || result[2]),
+        encryptedSum: result.encryptedSum || result[3],
+        encryptedCount: result.encryptedCount || result[4],
         timestamp: Number(result.timestamp || result[5]),
         isDecrypted: result.isDecrypted || result[6] || false,
         decryptedSum: result.decryptedSum ? Number(result.decryptedSum) : 0,

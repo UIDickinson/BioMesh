@@ -244,6 +244,16 @@ export const CONTRACTS = {
       // Decryption functions
       {
         "inputs": [{ "internalType": "uint256", "name": "queryId", "type": "uint256" }],
+        "name": "getEncryptedHandles",
+        "outputs": [
+          { "internalType": "uint256", "name": "sumHandle", "type": "uint256" },
+          { "internalType": "uint256", "name": "countHandle", "type": "uint256" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "uint256", "name": "queryId", "type": "uint256" }],
         "name": "requestDecryption",
         "outputs": [],
         "stateMutability": "nonpayable",
