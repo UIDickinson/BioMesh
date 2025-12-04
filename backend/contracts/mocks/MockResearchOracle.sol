@@ -1,46 +1,30 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 pragma solidity ^0.8.24;
 
-import "@fhevm/solidity/lib/FHE.sol";
-import "@fhevm/solidity/config/ZamaConfig.sol";
-import "encrypted-types/EncryptedTypes.sol";
-import "./interfaces/IDataRegistry.sol";
-import "./interfaces/IPaymentProcessor.sol";
+import "./MockDataRegistry.sol";
+import "../interfaces/IPaymentProcessor.sol";
 
-contract ResearchOracle is ZamaEthereumConfig {
+contract MockResearchOracle {
     
-    // ============ State Variables ============
-    
-    IDataRegistry public dataRegistry;
+    MockDataRegistry public dataRegistry;
     IPaymentProcessor public paymentProcessor;
     
-    /// @notice Query pricing in wei
     uint256 public queryFee;
-    
-    /// @notice Owner address
     address public owner;
-    
-    /// @notice Query counter
     uint256 public queryCount;
     
-    /// @notice Query result storage
     struct QueryResult {
         uint256 queryId;
         address researcher;
         uint256 recordCount;
-        euint64 encryptedSum;
-        euint32 encryptedCount;
+        uint256 encryptedSum;
+        uint256 encryptedCount;
         uint256 timestamp;
         bool isDecrypted;
     }
     
-    /// @notice Mapping: queryId => QueryResult
     mapping(uint256 => QueryResult) public queryResults;
-    
-    /// @notice Mapping: researcher => queryIds
     mapping(address => uint256[]) public researcherQueries;
-    
-    // ============ Events ============
     
     event QueryExecuted(
         uint256 indexed queryId,
@@ -52,13 +36,6 @@ contract ResearchOracle is ZamaEthereumConfig {
     
     event QueryFeeUpdated(uint256 indexed oldFee, uint256 indexed newFee);
     
-    event DecryptionRequested(
-        uint256 indexed queryId,
-        address indexed researcher
-    );
-    
-    // ============ Modifiers ============
-    
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
         _;
@@ -69,7 +46,7 @@ contract ResearchOracle is ZamaEthereumConfig {
         _;
     }
     
-    // ============ Constructor ============
+    uint256 public constant MAX_QUERY_BATCH = 50;
     
     constructor(
         address _dataRegistry,
@@ -80,25 +57,12 @@ contract ResearchOracle is ZamaEthereumConfig {
         require(_paymentProcessor != address(0), "Invalid processor");
         require(_queryFee > 0, "Query fee must be greater than zero");
         
-        dataRegistry = IDataRegistry(_dataRegistry);
+        dataRegistry = MockDataRegistry(payable(_dataRegistry));
         paymentProcessor = IPaymentProcessor(_paymentProcessor);
         queryFee = _queryFee;
         owner = msg.sender;
     }
     
-    // ============ Core Query Functions ============
-    
-    /// @notice Maximum records per query batch to prevent gas limit issues
-    uint256 public constant MAX_QUERY_BATCH = 50;
-    
-    /**
-     * @notice Compute average biomarker for patients matching criteria
-     * @param minAge Minimum age (plaintext for simplicity)
-     * @param maxAge Maximum age
-     * @param diagnosisCode Target diagnosis code
-     * @return queryId The ID of the query for result retrieval
-     * @dev For large datasets, use computeAverageBiomarkerPaginated
-     */
     function computeAverageBiomarker(
         uint32 minAge,
         uint32 maxAge,
@@ -107,15 +71,6 @@ contract ResearchOracle is ZamaEthereumConfig {
         return _computeAverageBiomarkerRange(minAge, maxAge, diagnosisCode, 0, MAX_QUERY_BATCH);
     }
     
-    /**
-     * @notice Compute average biomarker with pagination for large datasets
-     * @param minAge Minimum age
-     * @param maxAge Maximum age
-     * @param diagnosisCode Target diagnosis code
-     * @param startIndex Starting record index
-     * @param batchSize Number of records to process (max MAX_QUERY_BATCH)
-     * @return queryId The ID of the query for result retrieval
-     */
     function computeAverageBiomarkerPaginated(
         uint32 minAge,
         uint32 maxAge,
@@ -127,9 +82,6 @@ contract ResearchOracle is ZamaEthereumConfig {
         return _computeAverageBiomarkerRange(minAge, maxAge, diagnosisCode, startIndex, batchSize);
     }
     
-    /**
-     * @notice Internal function to compute average biomarker over a range
-     */
     function _computeAverageBiomarkerRange(
         uint32 minAge,
         uint32 maxAge,
@@ -138,8 +90,8 @@ contract ResearchOracle is ZamaEthereumConfig {
         uint256 batchSize
     ) internal returns (uint256) {
         
-        euint64 sum = FHE.asEuint64(0);
-        euint32 count = FHE.asEuint32(0);
+        uint256 sum = 0;
+        uint256 count = 0;
         
         uint256 totalRecords = dataRegistry.recordCount();
         uint256 endIndex = startIndex + batchSize;
@@ -151,15 +103,11 @@ contract ResearchOracle is ZamaEthereumConfig {
         uint256 usedCount = 0;
         
         for (uint256 i = startIndex; i < endIndex; i++) {
-            // First, grant this oracle access to the record's encrypted data
-            // This is required for FHE - we need permission to read the handles
-            try dataRegistry.grantOracleAccess(i, address(this)) {} catch {}
-            
             (
-                euint32 age,
-                euint32 diagnosis,
+                uint256 age,
+                uint256 diagnosis,
                 ,
-                euint64 biomarker,
+                uint256 biomarker,
                 ,
                 ,
                 bool isActive
@@ -167,28 +115,13 @@ contract ResearchOracle is ZamaEthereumConfig {
             
             if (!isActive) continue;
             
-            ebool ageInRange = FHE.and(
-                FHE.ge(age, FHE.asEuint32(minAge)),
-                FHE.le(age, FHE.asEuint32(maxAge))
-            );
+            bool ageInRange = age >= minAge && age <= maxAge;
+            bool diagnosisMatches = diagnosis == diagnosisCode;
             
-            ebool diagnosisMatches = FHE.eq(diagnosis, FHE.asEuint32(diagnosisCode));
-            
-            ebool includeRecord = FHE.and(ageInRange, diagnosisMatches);
-            
-            euint64 valueToAdd = FHE.select(
-                includeRecord,
-                biomarker,
-                FHE.asEuint64(0)
-            );
-            sum = FHE.add(sum, valueToAdd);
-            
-            euint32 countToAdd = FHE.select(
-                includeRecord,
-                FHE.asEuint32(1),
-                FHE.asEuint32(0)
-            );
-            count = FHE.add(count, countToAdd);
+            if (ageInRange && diagnosisMatches) {
+                sum += biomarker;
+                count++;
+            }
             
             usedRecords[usedCount] = i;
             usedCount++;
@@ -206,9 +139,6 @@ contract ResearchOracle is ZamaEthereumConfig {
             isDecrypted: false
         });
         
-        FHE.allow(sum, msg.sender);
-        FHE.allow(count, msg.sender);
-        
         researcherQueries[msg.sender].push(queryId);
         
         uint256[] memory finalRecords = new uint256[](usedCount);
@@ -226,13 +156,6 @@ contract ResearchOracle is ZamaEthereumConfig {
         return queryId;
     }
     
-    /**
-     * @notice Count patients matching specific criteria
-     * @param diagnosisCode Target diagnosis code
-     * @param minOutcome Minimum treatment outcome score
-     * @return queryId The ID of the query
-     * @dev For large datasets, use countPatientsByCriteriaPaginated
-     */
     function countPatientsByCriteria(
         uint32 diagnosisCode,
         uint32 minOutcome
@@ -240,14 +163,6 @@ contract ResearchOracle is ZamaEthereumConfig {
         return _countPatientsByCriteriaRange(diagnosisCode, minOutcome, 0, MAX_QUERY_BATCH);
     }
     
-    /**
-     * @notice Count patients with pagination for large datasets
-     * @param diagnosisCode Target diagnosis code
-     * @param minOutcome Minimum treatment outcome score
-     * @param startIndex Starting record index
-     * @param batchSize Number of records to process (max MAX_QUERY_BATCH)
-     * @return queryId The ID of the query
-     */
     function countPatientsByCriteriaPaginated(
         uint32 diagnosisCode,
         uint32 minOutcome,
@@ -258,9 +173,6 @@ contract ResearchOracle is ZamaEthereumConfig {
         return _countPatientsByCriteriaRange(diagnosisCode, minOutcome, startIndex, batchSize);
     }
     
-    /**
-     * @notice Internal function to count patients over a range
-     */
     function _countPatientsByCriteriaRange(
         uint32 diagnosisCode,
         uint32 minOutcome,
@@ -268,7 +180,7 @@ contract ResearchOracle is ZamaEthereumConfig {
         uint256 batchSize
     ) internal returns (uint256) {
         
-        euint32 count = FHE.asEuint32(0);
+        uint256 count = 0;
         uint256 totalRecords = dataRegistry.recordCount();
         uint256 endIndex = startIndex + batchSize;
         if (endIndex > totalRecords) {
@@ -279,14 +191,10 @@ contract ResearchOracle is ZamaEthereumConfig {
         uint256 usedCount = 0;
         
         for (uint256 i = startIndex; i < endIndex; i++) {
-            // First, grant this oracle access to the record's encrypted data
-            // This is required for FHE - we need permission to read the handles
-            try dataRegistry.grantOracleAccess(i, address(this)) {} catch {}
-            
             (
                 ,
-                euint32 diagnosis,
-                euint32 outcome,
+                uint256 diagnosis,
+                uint256 outcome,
                 ,
                 ,
                 ,
@@ -295,22 +203,9 @@ contract ResearchOracle is ZamaEthereumConfig {
             
             if (!isActive) continue;
             
-            ebool diagnosisMatches = FHE.eq(
-                diagnosis, 
-                FHE.asEuint32(diagnosisCode)
-            );
-            ebool outcomeQualifies = FHE.ge(
-                outcome, 
-                FHE.asEuint32(minOutcome)
-            );
-            ebool includeRecord = FHE.and(diagnosisMatches, outcomeQualifies);
-            
-            euint32 increment = FHE.select(
-                includeRecord,
-                FHE.asEuint32(1),
-                FHE.asEuint32(0)
-            );
-            count = FHE.add(count, increment);
+            if (diagnosis == diagnosisCode && outcome >= minOutcome) {
+                count++;
+            }
             
             usedRecords[usedCount] = i;
             usedCount++;
@@ -322,13 +217,12 @@ contract ResearchOracle is ZamaEthereumConfig {
             queryId: queryId,
             researcher: msg.sender,
             recordCount: usedCount,
-            encryptedSum: FHE.asEuint64(0),
+            encryptedSum: 0,
             encryptedCount: count,
             timestamp: block.timestamp,
             isDecrypted: false
         });
         
-        FHE.allow(count, msg.sender);
         researcherQueries[msg.sender].push(queryId);
         
         uint256[] memory finalRecords = new uint256[](usedCount);
@@ -346,11 +240,6 @@ contract ResearchOracle is ZamaEthereumConfig {
         return queryId;
     }
     
-    /**
-     * @notice Get query result (encrypted)
-     * @param queryId The query ID
-     * @return QueryResult struct
-     */
     function getQueryResult(uint256 queryId) 
         external 
         view 
@@ -363,11 +252,6 @@ contract ResearchOracle is ZamaEthereumConfig {
         return queryResults[queryId];
     }
     
-    /**
-     * @notice Get all query IDs for a researcher
-     * @param researcher The researcher address
-     * @return Array of query IDs
-     */
     function getResearcherQueries(address researcher) 
         external 
         view 
@@ -376,21 +260,12 @@ contract ResearchOracle is ZamaEthereumConfig {
         return researcherQueries[researcher];
     }
     
-    // ============ Admin Functions ============
-    
-    /**
-     * @notice Update query fee
-     * @param newFee New fee in wei
-     */
     function updateQueryFee(uint256 newFee) external onlyOwner {
         uint256 oldFee = queryFee;
         queryFee = newFee;
         emit QueryFeeUpdated(oldFee, newFee);
     }
     
-    /**
-     * @notice Withdraw accumulated fees
-     */
     function withdrawFees() external onlyOwner {
         uint256 balance = address(this).balance;
         require(balance > 0, "No fees to withdraw");
@@ -399,12 +274,6 @@ contract ResearchOracle is ZamaEthereumConfig {
         require(success, "Transfer failed");
     }
     
-    // ============ Utility Functions ============
-    
-    /**
-     * @notice Get total number of queries executed
-     * @return Total query count
-     */
     function getTotalQueries() external view returns (uint256) {
         return queryCount;
     }

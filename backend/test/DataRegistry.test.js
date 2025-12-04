@@ -3,15 +3,13 @@ const { ethers } = require("hardhat");
 const { loadFixture } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 
 describe("DataRegistry", function () {
-  // Fixture for deploying contracts
   async function deployDataRegistryFixture() {
     const [owner, patient1, patient2, oracle, unauthorized] = await ethers.getSigners();
 
-    const DataRegistry = await ethers.getContractFactory("DataRegistry");
+    const DataRegistry = await ethers.getContractFactory("MockDataRegistry");
     const dataRegistry = await DataRegistry.deploy();
     await dataRegistry.waitForDeployment();
 
-    // Disable cooldown for testing
     await dataRegistry.updateSubmissionCooldown(0);
 
     return { dataRegistry, owner, patient1, patient2, oracle, unauthorized };

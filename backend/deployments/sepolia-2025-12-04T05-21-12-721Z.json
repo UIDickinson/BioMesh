@@ -1,0 +1,37 @@
+{
+  "network": "sepolia",
+  "chainId": 11155111,
+  "deployer": "0xC558F87a83BB747a5E7d19D6387D2dFBC0c0bA60",
+  "timestamp": "2025-12-04T05:21:12.721Z",
+  "deploymentDuration": "68.51s",
+  "contracts": {
+    "DataRegistry": {
+      "address": "0xd51ca70ce024f2fdB1bC02692549C819da5407A2",
+      "blockNumber": 9765153,
+      "type": "Core Data Storage"
+    },
+    "PaymentProcessor": {
+      "address": "0x17560A4F6D5783D6057A042A72B7BE4093DD8714",
+      "blockNumber": 9765154,
+      "type": "Payment & Earnings Management"
+    },
+    "ResearchOracle": {
+      "address": "0x7eBaC8C8C5fecc762892Ac23B031986CCA158d82",
+      "blockNumber": 9765156,
+      "type": "Encrypted Query Execution"
+    }
+  },
+  "configuration": {
+    "queryFee": "10000000000000000",
+    "queryFeeETH": "0.01",
+    "platformWallet": "0xC558F87a83BB747a5E7d19D6387D2dFBC0c0bA60",
+    "patientShare": "70%",
+    "platformShare": "30%"
+  },
+  "blockExplorer": {
+    "baseUrl": "https://sepolia.etherscan.io",
+    "DataRegistry": "https://sepolia.etherscan.io/address/0xd51ca70ce024f2fdB1bC02692549C819da5407A2",
+    "PaymentProcessor": "https://sepolia.etherscan.io/address/0x17560A4F6D5783D6057A042A72B7BE4093DD8714",
+    "ResearchOracle": "https://sepolia.etherscan.io/address/0x5E39428d803498705282De6e3Bc85BC123EAEBD0"
+  }
+}

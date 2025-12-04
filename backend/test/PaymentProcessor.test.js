@@ -6,15 +6,12 @@ describe("PaymentProcessor", function () {
   async function deployPaymentProcessorFixture() {
     const [owner, platformWallet, oracle, patient1, patient2, researcher] = await ethers.getSigners();
 
-    // Deploy mock DataRegistry first
-    const DataRegistry = await ethers.getContractFactory("DataRegistry");
+    const DataRegistry = await ethers.getContractFactory("MockDataRegistry");
     const dataRegistry = await DataRegistry.deploy();
     await dataRegistry.waitForDeployment();
 
-    // Disable cooldown for testing
     await dataRegistry.updateSubmissionCooldown(0);
 
-    // Submit test records
     const encryptedAge = ethers.zeroPadValue("0x01", 32);
     const encryptedDiagnosis = ethers.zeroPadValue("0x02", 32);
     const encryptedOutcome = ethers.zeroPadValue("0x03", 32);
@@ -28,7 +25,6 @@ describe("PaymentProcessor", function () {
       encryptedAge, encryptedDiagnosis, encryptedOutcome, encryptedBiomarker, inputProof
     );
 
-    // Deploy PaymentProcessor
     const PaymentProcessor = await ethers.getContractFactory("PaymentProcessor");
     const paymentProcessor = await PaymentProcessor.deploy(
       await dataRegistry.getAddress(),

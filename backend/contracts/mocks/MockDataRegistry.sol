@@ -1,43 +1,28 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 pragma solidity ^0.8.24;
 
-import "@fhevm/solidity/lib/FHE.sol";
-import "@fhevm/solidity/config/ZamaConfig.sol";
-import "encrypted-types/EncryptedTypes.sol";
-
-contract DataRegistry is ZamaEthereumConfig {
+contract MockDataRegistry {
     
     struct HealthRecord {
-        euint32 age;
-        euint32 diagnosis;
-        euint32 treatmentOutcome;
-        euint64 biomarker;
+        uint256 age;
+        uint256 diagnosis;
+        uint256 treatmentOutcome;
+        uint256 biomarker;
         address patient;
         uint256 timestamp;
         bool isActive;
     }
     
     mapping(uint256 => HealthRecord) public records;
-    
     mapping(address => uint256[]) private patientRecordIds;
-    
     mapping(uint32 => uint256[]) private diagnosisIndex;
     
     uint256 public recordCount;
-    
     mapping(address => bool) public authorizedOracles;
-    
     address public owner;
-    
     uint256 public constant MAX_BATCH_SIZE = 100;
-    
-    /// @notice Submission cooldown per address (rate limiting)
     mapping(address => uint256) public lastSubmission;
-    
-    /// @notice Cooldown period between submissions (1 hour)
     uint256 public submissionCooldown = 1 hours;
-    
-    // ============ Events ============
     
     event RecordSubmitted(
         uint256 indexed recordId, 
@@ -55,8 +40,6 @@ contract DataRegistry is ZamaEthereumConfig {
     event AccessGranted(uint256 indexed recordId, address indexed oracle);
     event BatchAccessGranted(uint256[] recordIds, address indexed oracle, uint256 count);
     
-    // ============ Modifiers ============
-    
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
         _;
@@ -72,29 +55,16 @@ contract DataRegistry is ZamaEthereumConfig {
         _;
     }
     
-    // ============ Constructor ============
-    
     constructor() {
         owner = msg.sender;
     }
     
-    // ============ Core Functions ============
-    
-    /**
-     * @notice Submit encrypted health data
-     * @param encryptedAge Encrypted age value
-     * @param encryptedDiagnosis Encrypted diagnosis code
-     * @param encryptedOutcome Encrypted treatment outcome
-     * @param encryptedBiomarker Encrypted biomarker value
-     * @param inputProof Proof for all encrypted inputs
-     * @return recordId The ID of the newly created record
-     */
     function submitHealthData(
-        externalEuint32 encryptedAge,
-        externalEuint32 encryptedDiagnosis,
-        externalEuint32 encryptedOutcome,
-        externalEuint64 encryptedBiomarker,
-        bytes calldata inputProof
+        bytes32 encryptedAge,
+        bytes32 encryptedDiagnosis,
+        bytes32 encryptedOutcome,
+        bytes32 encryptedBiomarker,
+        bytes calldata
     ) external returns (uint256) {
         
         require(
@@ -103,41 +73,17 @@ contract DataRegistry is ZamaEthereumConfig {
         );
         lastSubmission[msg.sender] = block.timestamp;
         
-        euint32 age = FHE.fromExternal(encryptedAge, inputProof);
-        euint32 diagnosis = FHE.fromExternal(encryptedDiagnosis, inputProof);
-        euint32 outcome = FHE.fromExternal(encryptedOutcome, inputProof);
-        euint64 biomarker = FHE.fromExternal(encryptedBiomarker, inputProof);
-        
-        ebool validAge = FHE.and(
-            FHE.ge(age, FHE.asEuint32(1)),
-            FHE.le(age, FHE.asEuint32(120))
-        );
-        
-        ebool validOutcome = FHE.le(outcome, FHE.asEuint32(100));
-        
-        FHE.and(validAge, validOutcome);
-        
         uint256 recordId = recordCount++;
         
         records[recordId] = HealthRecord({
-            age: age,
-            diagnosis: diagnosis,
-            treatmentOutcome: outcome,
-            biomarker: biomarker,
+            age: uint256(encryptedAge),
+            diagnosis: uint256(encryptedDiagnosis),
+            treatmentOutcome: uint256(encryptedOutcome),
+            biomarker: uint256(encryptedBiomarker),
             patient: msg.sender,
             timestamp: block.timestamp,
             isActive: true
         });
-        
-        FHE.allowThis(age);
-        FHE.allowThis(diagnosis);
-        FHE.allowThis(outcome);
-        FHE.allowThis(biomarker);
-        
-        FHE.allow(age, msg.sender);
-        FHE.allow(diagnosis, msg.sender);
-        FHE.allow(outcome, msg.sender);
-        FHE.allow(biomarker, msg.sender);
         
         patientRecordIds[msg.sender].push(recordId);
         
@@ -146,26 +92,15 @@ contract DataRegistry is ZamaEthereumConfig {
         return recordId;
     }
     
-    /**
-     * @notice Revoke access to patient's health data
-     * @param recordId The ID of the record to revoke
-     */
     function revokeRecord(uint256 recordId) 
         external 
         onlyRecordOwner(recordId) 
     {
         require(records[recordId].isActive, "Record already revoked");
-        
         records[recordId].isActive = false;
-        
         emit RecordRevoked(recordId, msg.sender);
     }
     
-    /**
-     * @notice Get patient's record IDs
-     * @param patient The patient's address
-     * @return Array of record IDs owned by the patient
-     */
     function getPatientRecords(address patient) 
         external 
         view 
@@ -174,13 +109,6 @@ contract DataRegistry is ZamaEthereumConfig {
         return patientRecordIds[patient];
     }
     
-    /**
-     * @notice Get patient's record IDs with pagination
-     * @param patient The patient's address
-     * @param offset Starting index
-     * @param limit Maximum number of records to return
-     * @return Array of record IDs, total count of patient's records
-     */
     function getPatientRecordsPaginated(
         address patient,
         uint256 offset,
@@ -208,11 +136,6 @@ contract DataRegistry is ZamaEthereumConfig {
         return (result, totalCount);
     }
     
-    /**
-     * @notice Get record details (only accessible by patient or authorized oracle)
-     * @param recordId The record ID
-     * @return HealthRecord struct
-     */
     function getRecord(uint256 recordId) 
         external 
         view 
@@ -226,11 +149,6 @@ contract DataRegistry is ZamaEthereumConfig {
         return record;
     }
     
-    /**
-     * @notice Check if record is active
-     * @param recordId The record ID
-     * @return Boolean indicating if record is active
-     */
     function isRecordActive(uint256 recordId) 
         external 
         view 
@@ -239,87 +157,38 @@ contract DataRegistry is ZamaEthereumConfig {
         return records[recordId].isActive;
     }
     
-    // ============ Admin Functions ============
-    
-    /**
-     * @notice Authorize a research oracle to query data
-     * @param oracle Address of the oracle contract
-     */
     function authorizeOracle(address oracle) external onlyOwner {
         require(oracle != address(0), "Invalid oracle address");
         authorizedOracles[oracle] = true;
         emit OracleAuthorized(oracle);
     }
     
-    /**
-     * @notice Revoke oracle authorization
-     * @param oracle Address of the oracle contract
-     */
     function revokeOracle(address oracle) external onlyOwner {
         authorizedOracles[oracle] = false;
         emit OracleRevoked(oracle);
     }
     
-    /**
-     * @notice Update submission cooldown period
-     * @param newCooldown New cooldown period in seconds
-     */
     function updateSubmissionCooldown(uint256 newCooldown) external onlyOwner {
         submissionCooldown = newCooldown;
     }
     
-    /**
-     * @notice Grant oracle permission to access specific record's encrypted data
-     * @param recordId The record ID
-     * @param oracle The oracle address
-     */
-    function grantOracleAccess(uint256 recordId, address oracle) 
+    function grantOracleAccess(uint256 recordId, address) 
         external 
         onlyAuthorizedOracle 
     {
         HealthRecord storage record = records[recordId];
         require(record.isActive, "Record not active");
-        
-        FHE.allow(record.age, oracle);
-        FHE.allow(record.diagnosis, oracle);
-        FHE.allow(record.treatmentOutcome, oracle);
-        FHE.allow(record.biomarker, oracle);
-        
-        emit AccessGranted(recordId, oracle);
+        emit AccessGranted(recordId, msg.sender);
     }
     
-    /**
-     * @notice Batch grant access for multiple records
-     * @param recordIds Array of record IDs
-     * @param oracle The oracle address
-     */
     function batchGrantOracleAccess(
         uint256[] calldata recordIds, 
         address oracle
     ) external onlyAuthorizedOracle {
         require(recordIds.length > 0, "No records provided");
         require(recordIds.length <= MAX_BATCH_SIZE, "Batch size exceeds limit");
-        
-        for (uint256 i = 0; i < recordIds.length; i++) {
-            HealthRecord storage record = records[recordIds[i]];
-            if (record.isActive) {
-                FHE.allow(record.age, oracle);
-                FHE.allow(record.diagnosis, oracle);
-                FHE.allow(record.treatmentOutcome, oracle);
-                FHE.allow(record.biomarker, oracle);
-            }
-        }
-        
         emit BatchAccessGranted(recordIds, oracle, recordIds.length);
     }
     
-    // ============ Fallback Functions ============
-    
-    /**
-     * @notice Fallback function to handle unexpected ETH transfers
-     * @dev Allows contract to receive ETH without explicit function calls
-     */
-    receive() external payable {
-        // Silently accept ETH transfers
-    }
+    receive() external payable {}
 }

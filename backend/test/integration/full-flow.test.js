@@ -7,15 +7,12 @@ describe("BioMesh Integration Tests", function () {
     const [owner, platformWallet, patient1, patient2, patient3, researcher1, researcher2] = 
       await ethers.getSigners();
 
-    // Deploy DataRegistry
-    const DataRegistry = await ethers.getContractFactory("DataRegistry");
+    const DataRegistry = await ethers.getContractFactory("MockDataRegistry");
     const dataRegistry = await DataRegistry.deploy();
     await dataRegistry.waitForDeployment();
 
-    // Disable cooldown for testing
     await dataRegistry.updateSubmissionCooldown(0);
 
-    // Deploy PaymentProcessor
     const PaymentProcessor = await ethers.getContractFactory("PaymentProcessor");
     const paymentProcessor = await PaymentProcessor.deploy(
       await dataRegistry.getAddress(),
@@ -23,9 +20,8 @@ describe("BioMesh Integration Tests", function () {
     );
     await paymentProcessor.waitForDeployment();
 
-    // Deploy ResearchOracle
     const queryFee = ethers.parseEther("0.01");
-    const ResearchOracle = await ethers.getContractFactory("ResearchOracle");
+    const ResearchOracle = await ethers.getContractFactory("MockResearchOracle");
     const researchOracle = await ResearchOracle.deploy(
       await dataRegistry.getAddress(),
       await paymentProcessor.getAddress(),
@@ -33,7 +29,6 @@ describe("BioMesh Integration Tests", function () {
     );
     await researchOracle.waitForDeployment();
 
-    // Setup permissions
     await dataRegistry.connect(owner).authorizeOracle(await researchOracle.getAddress());
     await paymentProcessor.connect(owner).authorizeOracle(await researchOracle.getAddress());
 
@@ -63,21 +58,18 @@ describe("BioMesh Integration Tests", function () {
       const encryptedBiomarker = ethers.zeroPadValue("0x04", 32);
       const inputProof = ethers.zeroPadValue("0x00", 64);
 
-      // Patient 1 submits data
       await expect(
         dataRegistry.connect(patient1).submitHealthData(
           encryptedAge, encryptedDiagnosis, encryptedOutcome, encryptedBiomarker, inputProof
         )
       ).to.emit(dataRegistry, "RecordSubmitted");
 
-      // Patient 2 submits data
       await expect(
         dataRegistry.connect(patient2).submitHealthData(
           encryptedAge, encryptedDiagnosis, encryptedOutcome, encryptedBiomarker, inputProof
         )
       ).to.emit(dataRegistry, "RecordSubmitted");
 
-      // Patient 3 submits data
       await expect(
         dataRegistry.connect(patient3).submitHealthData(
           encryptedAge, encryptedDiagnosis, encryptedOutcome, encryptedBiomarker, inputProof

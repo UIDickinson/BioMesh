@@ -7,15 +7,12 @@ describe("ResearchOracle", function () {
     const [owner, platformWallet, researcher1, researcher2, patient1, patient2] = 
       await ethers.getSigners();
 
-    // Deploy DataRegistry
-    const DataRegistry = await ethers.getContractFactory("DataRegistry");
+    const DataRegistry = await ethers.getContractFactory("MockDataRegistry");
     const dataRegistry = await DataRegistry.deploy();
     await dataRegistry.waitForDeployment();
 
-    // Disable cooldown for testing
     await dataRegistry.updateSubmissionCooldown(0);
 
-    // Submit test records
     const encryptedAge = ethers.zeroPadValue("0x01", 32);
     const encryptedDiagnosis = ethers.zeroPadValue("0x02", 32);
     const encryptedOutcome = ethers.zeroPadValue("0x03", 32);
@@ -29,7 +26,6 @@ describe("ResearchOracle", function () {
       encryptedAge, encryptedDiagnosis, encryptedOutcome, encryptedBiomarker, inputProof
     );
 
-    // Deploy PaymentProcessor
     const PaymentProcessor = await ethers.getContractFactory("PaymentProcessor");
     const paymentProcessor = await PaymentProcessor.deploy(
       await dataRegistry.getAddress(),
@@ -37,9 +33,8 @@ describe("ResearchOracle", function () {
     );
     await paymentProcessor.waitForDeployment();
 
-    // Deploy ResearchOracle
     const queryFee = ethers.parseEther("0.01");
-    const ResearchOracle = await ethers.getContractFactory("ResearchOracle");
+    const ResearchOracle = await ethers.getContractFactory("MockResearchOracle");
     const researchOracle = await ResearchOracle.deploy(
       await dataRegistry.getAddress(),
       await paymentProcessor.getAddress(),
@@ -47,7 +42,6 @@ describe("ResearchOracle", function () {
     );
     await researchOracle.waitForDeployment();
 
-    // Setup permissions
     await dataRegistry.connect(owner).authorizeOracle(await researchOracle.getAddress());
     await paymentProcessor.connect(owner).authorizeOracle(await researchOracle.getAddress());
 

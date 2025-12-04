@@ -66,16 +66,27 @@ export function useDataRegistry(signer) {
       const contract = getContract();
       
       // Prepare transaction parameters
-      // The mock contract expects uint256 values, so we convert handles to BigInt
-      const txParams = [
-        BigInt(encrypted.handles[0]),
-        BigInt(encrypted.handles[1]),
-        BigInt(encrypted.handles[2]),
-        BigInt(encrypted.handles[3]),
-        encrypted.inputProof
-      ];
+      // Production mode (real FHE): handles are bytes32 hex strings - pass them directly
+      // Mock mode: contract expects uint256 values - convert handles to BigInt
+      const productionMode = isRealFHEMode();
+      const txParams = productionMode
+        ? [
+            encrypted.handles[0],  // bytes32 hex string
+            encrypted.handles[1],
+            encrypted.handles[2],
+            encrypted.handles[3],
+            encrypted.inputProof
+          ]
+        : [
+            BigInt(encrypted.handles[0]),  // uint256
+            BigInt(encrypted.handles[1]),
+            BigInt(encrypted.handles[2]),
+            BigInt(encrypted.handles[3]),
+            encrypted.inputProof
+          ];
       
       console.log('📄 Calling submitHealthData...');
+      console.log('   Mode:', productionMode ? 'PRODUCTION (bytes32)' : 'MOCK (uint256)');
       console.log('   Parameters:', {
         age: txParams[0].toString().slice(0, 20) + '...',
         diagnosis: txParams[1].toString().slice(0, 20) + '...',
