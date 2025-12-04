@@ -147,9 +147,9 @@ npx hardhat test
 
 ## Documentation
 
-For detailed technical documentation, troubleshooting, and architecture details, see:
+For detailed technical documentation, troubleshooting, and architecture details, contact:
 
-**[📚 SETUP_GUIDE.md](./SETUP_GUIDE.md)**
+**[UIDickinson](https://x.com/ui_anon)**
 
 Contents:
 - Complete environment setup
