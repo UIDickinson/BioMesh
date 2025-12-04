@@ -220,8 +220,11 @@ contract ResearchOracle is ZamaEthereumConfig {
             decryptedCount: 0
         });
         
+        // Grant access to researcher (for viewing) and contract (for decryption)
         FHE.allow(sum, msg.sender);
         FHE.allow(count, msg.sender);
+        FHE.allow(sum, address(this));
+        FHE.allow(count, address(this));
         
         researcherQueries[msg.sender].push(queryId);
         
@@ -344,7 +347,9 @@ contract ResearchOracle is ZamaEthereumConfig {
             decryptedCount: 0
         });
         
+        // Grant access to researcher (for viewing) and contract (for decryption)
         FHE.allow(count, msg.sender);
+        FHE.allow(count, address(this));
         researcherQueries[msg.sender].push(queryId);
         
         uint256[] memory finalRecords = new uint256[](usedCount);
