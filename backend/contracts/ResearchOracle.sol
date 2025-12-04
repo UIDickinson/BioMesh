@@ -468,8 +468,11 @@ contract ResearchOracle is ZamaEthereumConfig {
      * @param queryId The query ID
      * @param decryptedSum The decrypted sum value
      * @param decryptedCount The decrypted count value
-     * @param decryptionProof The KMS decryption proof
-     * @dev In production, this should verify the decryption proof
+     * @param decryptionProof The KMS decryption proof (verified in production)
+     * @dev Can be called by:
+     *      - The researcher who owns the query
+     *      - The contract owner (acting as relayer for testing)
+     *      In production, this should verify KMS signatures via KMSVerifier
      */
     function submitDecryptedResult(
         uint256 queryId,
@@ -478,20 +481,29 @@ contract ResearchOracle is ZamaEthereumConfig {
         bytes calldata decryptionProof
     ) external {
         QueryResult storage result = queryResults[queryId];
-        require(result.researcher == msg.sender, "Not your query");
+        
+        // Allow researcher OR owner to submit (owner acts as relayer for testing)
+        require(
+            result.researcher == msg.sender || msg.sender == owner,
+            "Not authorized"
+        );
         require(decryptionRequested[queryId], "Decryption not requested");
         require(!result.isDecrypted, "Already decrypted");
         
-        // In production, verify the decryption proof here
-        // For now, we trust the caller (the researcher who owns the query)
-        // TODO: Add FHE.verifyDecryption() when available
+        // TODO: In production, verify the decryption proof via KMSVerifier:
+        // require(
+        //     IKMSVerifier(kmsVerifierAddress).verifyDecryptionEIP712KMSSignatures(
+        //         handlesList, decryptedResult, decryptionProof
+        //     ),
+        //     "Invalid KMS signatures"
+        // );
         
         // Store decrypted values
         result.decryptedSum = decryptedSum;
         result.decryptedCount = decryptedCount;
         result.isDecrypted = true;
         
-        emit DecryptionCompleted(queryId, msg.sender, decryptedSum, decryptedCount);
+        emit DecryptionCompleted(queryId, result.researcher, decryptedSum, decryptedCount);
     }
     
     /**

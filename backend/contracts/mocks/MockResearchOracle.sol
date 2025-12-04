@@ -324,7 +324,11 @@ contract MockResearchOracle {
         bytes calldata /* decryptionProof */
     ) external {
         QueryResult storage result = queryResults[queryId];
-        require(result.researcher == msg.sender, "Not your query");
+        // Allow researcher OR owner to submit (owner acts as relayer)
+        require(
+            result.researcher == msg.sender || msg.sender == owner,
+            "Not authorized"
+        );
         require(decryptionRequested[queryId], "Decryption not requested");
         require(!result.isDecrypted, "Already decrypted");
         

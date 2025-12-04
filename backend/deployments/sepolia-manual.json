@@ -1,11 +1,12 @@
 {
   "network": "sepolia",
   "chainId": 11155111,
-  "timestamp": "2024-12-04T00:00:00.000Z",
+  "deployer": "0xC558F87a83BB747a5E7d19D6387D2dFBC0c0bA60",
+  "timestamp": "2025-12-04T09:04:49.182Z",
   "contracts": {
     "DataRegistry": "0xd51ca70ce024f2fdB1bC02692549C819da5407A2",
     "PaymentProcessor": "0x17560A4F6D5783D6057A042A72B7BE4093DD8714",
-    "ResearchOracle": "0xa1183Dc5cD9bC0772067fC80E31956a63FD17a70"
+    "ResearchOracle": "0x132Df89485BcB1F4FC00a9Fdb1308ED0A3eF9f1E"
   },
   "configuration": {
     "queryFee": "10000000000000000",

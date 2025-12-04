@@ -15,6 +15,7 @@ export default function ResultsPage() {
     getQueryResult, 
     requestDecryption,
     getDecryptedResult,
+    isDecryptionRequested,
     isLoading: hookLoading 
   } = useResearchOracle(signer);
   const [queries, setQueries] = useState([]);
@@ -34,6 +35,9 @@ export default function ResultsPage() {
           const result = await getQueryResult(id);
           if (!result) return null;
           
+          // Check if decryption was requested
+          const decryptionRequested = await isDecryptionRequested(id);
+          
           // If already decrypted, get the decrypted values
           let decryptedData = null;
           if (result.isDecrypted) {
@@ -43,6 +47,7 @@ export default function ResultsPage() {
           return { 
             id, 
             ...result,
+            decryptionRequested,
             decryptedData
           };
         })
@@ -59,7 +64,7 @@ export default function ResultsPage() {
     } finally {
       setLoading(false);
     }
-  }, [signer, address, getResearcherQueries, getQueryResult, getDecryptedResult]);
+  }, [signer, address, getResearcherQueries, getQueryResult, getDecryptedResult, isDecryptionRequested]);
 
   useEffect(() => {
     if (isConnected && signer && address) {
@@ -168,7 +173,13 @@ export default function ResultsPage() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 mb-1">Status</p>
-                  <p className="font-semibold">{query.isDecrypted ? 'Ready' : 'Pending Decryption'}</p>
+                  <p className="font-semibold">
+                    {query.isDecrypted 
+                      ? 'Ready' 
+                      : query.decryptionRequested 
+                        ? '⏳ Awaiting Gateway...' 
+                        : 'Encrypted'}
+                  </p>
                 </div>
                 {query.isDecrypted && query.decryptedData && (
                   <>
@@ -216,23 +227,32 @@ export default function ResultsPage() {
 
               {/* Decrypt Button */}
               {!query.isDecrypted && (
-                <button
-                  onClick={() => handleRequestDecryption(query.id)}
-                  disabled={decryptingId === query.id || hookLoading}
-                  className="w-full py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-all disabled:opacity-50 flex items-center justify-center space-x-2"
-                >
-                  {decryptingId === query.id ? (
-                    <>
+                <div>
+                  {query.decryptionRequested ? (
+                    <div className="w-full py-3 bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 rounded-lg flex items-center justify-center space-x-2">
                       <Loader2 className="h-5 w-5 animate-spin" />
-                      <span>Decrypting...</span>
-                    </>
+                      <span>Waiting for Zama Gateway... (click refresh to check)</span>
+                    </div>
                   ) : (
-                    <>
-                      <Unlock className="h-5 w-5" />
-                      <span>Decrypt Results</span>
-                    </>
+                    <button
+                      onClick={() => handleRequestDecryption(query.id)}
+                      disabled={decryptingId === query.id || hookLoading}
+                      className="w-full py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-all disabled:opacity-50 flex items-center justify-center space-x-2"
+                    >
+                      {decryptingId === query.id ? (
+                        <>
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          <span>Requesting Decryption...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Unlock className="h-5 w-5" />
+                          <span>Request Decryption</span>
+                        </>
+                      )}
+                    </button>
                   )}
-                </button>
+                </div>
               )}
             </div>
           ))}
@@ -242,20 +262,28 @@ export default function ResultsPage() {
       <div className="mt-8 p-6 glass-morphism rounded-xl border border-primary-500/20">
         <h3 className="font-semibold mb-3 flex items-center space-x-2">
           <Lock className="h-5 w-5 text-primary-500" />
-          <span>How Decryption Works</span>
+          <span>How FHE Decryption Works</span>
         </h3>
         <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
           <p>
             <strong>1. Query Execution:</strong> Your query computes statistics on encrypted patient data. 
-            The results remain encrypted on-chain.
+            The results remain encrypted on-chain using Fully Homomorphic Encryption.
           </p>
           <p>
-            <strong>2. Request Decryption:</strong> Click "Decrypt Results" to request decryption from the 
-            Zama Gateway service. This marks your encrypted values as publicly decryptable.
+            <strong>2. Request Decryption:</strong> Click "Request Decryption" to mark your encrypted 
+            values for decryption. This sends a request to Zama's Gateway service.
           </p>
           <p>
-            <strong>3. View Results:</strong> Once decrypted, you can see the actual computed values 
+            <strong>3. Gateway Processing:</strong> The Zama Gateway decrypts your results off-chain 
+            using the network's threshold decryption keys. This may take a few minutes.
+          </p>
+          <p>
+            <strong>4. View Results:</strong> Once decrypted, you'll see the actual computed values 
             (sum, count, average) while individual patient data remains private.
+          </p>
+          <p className="text-yellow-500 mt-3">
+            <strong>⚠️ Note:</strong> On testnet, Gateway decryption may take 1-5 minutes. 
+            Click the refresh button to check for updates.
           </p>
         </div>
       </div>
