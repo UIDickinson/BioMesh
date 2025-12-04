@@ -21,10 +21,13 @@ contract MockResearchOracle {
         uint256 encryptedCount;
         uint256 timestamp;
         bool isDecrypted;
+        uint64 decryptedSum;
+        uint32 decryptedCount;
     }
     
     mapping(uint256 => QueryResult) public queryResults;
     mapping(address => uint256[]) public researcherQueries;
+    mapping(uint256 => bool) public decryptionRequested;
     
     event QueryExecuted(
         uint256 indexed queryId,
@@ -35,6 +38,15 @@ contract MockResearchOracle {
     );
     
     event QueryFeeUpdated(uint256 indexed oldFee, uint256 indexed newFee);
+    
+    event DecryptionRequested(uint256 indexed queryId, address indexed researcher);
+    
+    event DecryptionCompleted(
+        uint256 indexed queryId,
+        address indexed researcher,
+        uint64 decryptedSum,
+        uint32 decryptedCount
+    );
     
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
@@ -136,7 +148,9 @@ contract MockResearchOracle {
             encryptedSum: sum,
             encryptedCount: count,
             timestamp: block.timestamp,
-            isDecrypted: false
+            isDecrypted: false,
+            decryptedSum: 0,
+            decryptedCount: 0
         });
         
         researcherQueries[msg.sender].push(queryId);
@@ -220,7 +234,9 @@ contract MockResearchOracle {
             encryptedSum: 0,
             encryptedCount: count,
             timestamp: block.timestamp,
-            isDecrypted: false
+            isDecrypted: false,
+            decryptedSum: 0,
+            decryptedCount: 0
         });
         
         researcherQueries[msg.sender].push(queryId);
@@ -276,5 +292,75 @@ contract MockResearchOracle {
     
     function getTotalQueries() external view returns (uint256) {
         return queryCount;
+    }
+    
+    // ============ Decryption Functions (Mock) ============
+    
+    function requestDecryption(uint256 queryId) external {
+        QueryResult storage result = queryResults[queryId];
+        require(result.researcher == msg.sender, "Not your query");
+        require(!result.isDecrypted, "Already decrypted");
+        require(!decryptionRequested[queryId], "Decryption already requested");
+        
+        decryptionRequested[queryId] = true;
+        
+        // In mock mode, auto-decrypt immediately using stored values
+        result.decryptedSum = uint64(result.encryptedSum);
+        result.decryptedCount = uint32(result.encryptedCount);
+        result.isDecrypted = true;
+        
+        emit DecryptionRequested(queryId, msg.sender);
+        emit DecryptionCompleted(queryId, msg.sender, result.decryptedSum, result.decryptedCount);
+    }
+    
+    function isDecryptionRequested(uint256 queryId) external view returns (bool) {
+        return decryptionRequested[queryId];
+    }
+    
+    function submitDecryptedResult(
+        uint256 queryId,
+        uint64 decryptedSum,
+        uint32 decryptedCount,
+        bytes calldata /* decryptionProof */
+    ) external {
+        QueryResult storage result = queryResults[queryId];
+        require(result.researcher == msg.sender, "Not your query");
+        require(decryptionRequested[queryId], "Decryption not requested");
+        require(!result.isDecrypted, "Already decrypted");
+        
+        result.decryptedSum = decryptedSum;
+        result.decryptedCount = decryptedCount;
+        result.isDecrypted = true;
+        
+        emit DecryptionCompleted(queryId, msg.sender, decryptedSum, decryptedCount);
+    }
+    
+    function getDecryptedResult(uint256 queryId) 
+        external 
+        view 
+        returns (
+            uint64 sum,
+            uint32 count,
+            uint64 average,
+            bool isReady
+        ) 
+    {
+        QueryResult storage result = queryResults[queryId];
+        require(result.researcher == msg.sender, "Not your query");
+        
+        if (!result.isDecrypted) {
+            return (0, 0, 0, false);
+        }
+        
+        uint64 avg = result.decryptedCount > 0 
+            ? result.decryptedSum / uint64(result.decryptedCount) 
+            : 0;
+            
+        return (
+            result.decryptedSum,
+            result.decryptedCount,
+            avg,
+            true
+        );
     }
 }

@@ -32,6 +32,8 @@ contract ResearchOracle is ZamaEthereumConfig {
         euint32 encryptedCount;
         uint256 timestamp;
         bool isDecrypted;
+        uint64 decryptedSum;      // Plaintext result after decryption
+        uint32 decryptedCount;    // Plaintext count after decryption
     }
     
     /// @notice Mapping: queryId => QueryResult
@@ -39,6 +41,9 @@ contract ResearchOracle is ZamaEthereumConfig {
     
     /// @notice Mapping: researcher => queryIds
     mapping(address => uint256[]) public researcherQueries;
+    
+    /// @notice Mapping: queryId => decryption requested
+    mapping(uint256 => bool) public decryptionRequested;
     
     // ============ Events ============
     
@@ -55,6 +60,13 @@ contract ResearchOracle is ZamaEthereumConfig {
     event DecryptionRequested(
         uint256 indexed queryId,
         address indexed researcher
+    );
+    
+    event DecryptionCompleted(
+        uint256 indexed queryId,
+        address indexed researcher,
+        uint64 decryptedSum,
+        uint32 decryptedCount
     );
     
     // ============ Modifiers ============
@@ -203,7 +215,9 @@ contract ResearchOracle is ZamaEthereumConfig {
             encryptedSum: sum,
             encryptedCount: count,
             timestamp: block.timestamp,
-            isDecrypted: false
+            isDecrypted: false,
+            decryptedSum: 0,
+            decryptedCount: 0
         });
         
         FHE.allow(sum, msg.sender);
@@ -325,7 +339,9 @@ contract ResearchOracle is ZamaEthereumConfig {
             encryptedSum: FHE.asEuint64(0),
             encryptedCount: count,
             timestamp: block.timestamp,
-            isDecrypted: false
+            isDecrypted: false,
+            decryptedSum: 0,
+            decryptedCount: 0
         });
         
         FHE.allow(count, msg.sender);
@@ -407,5 +423,106 @@ contract ResearchOracle is ZamaEthereumConfig {
      */
     function getTotalQueries() external view returns (uint256) {
         return queryCount;
+    }
+    
+    // ============ Decryption Functions ============
+    
+    /**
+     * @notice Request decryption of query results
+     * @param queryId The query ID to decrypt
+     * @dev Marks the encrypted values as publicly decryptable
+     *      The actual decryption happens off-chain via the Gateway
+     */
+    function requestDecryption(uint256 queryId) external {
+        QueryResult storage result = queryResults[queryId];
+        require(result.researcher == msg.sender, "Not your query");
+        require(!result.isDecrypted, "Already decrypted");
+        require(!decryptionRequested[queryId], "Decryption already requested");
+        
+        // Mark values as publicly decryptable
+        // This allows the Gateway to decrypt them
+        FHE.makePubliclyDecryptable(result.encryptedSum);
+        FHE.makePubliclyDecryptable(result.encryptedCount);
+        
+        decryptionRequested[queryId] = true;
+        
+        emit DecryptionRequested(queryId, msg.sender);
+    }
+    
+    /**
+     * @notice Check if decryption has been requested for a query
+     * @param queryId The query ID to check
+     * @return Whether decryption has been requested
+     */
+    function isDecryptionRequested(uint256 queryId) external view returns (bool) {
+        return decryptionRequested[queryId];
+    }
+    
+    /**
+     * @notice Submit decrypted results (called after off-chain decryption)
+     * @param queryId The query ID
+     * @param decryptedSum The decrypted sum value
+     * @param decryptedCount The decrypted count value
+     * @param decryptionProof The KMS decryption proof
+     * @dev In production, this should verify the decryption proof
+     */
+    function submitDecryptedResult(
+        uint256 queryId,
+        uint64 decryptedSum,
+        uint32 decryptedCount,
+        bytes calldata decryptionProof
+    ) external {
+        QueryResult storage result = queryResults[queryId];
+        require(result.researcher == msg.sender, "Not your query");
+        require(decryptionRequested[queryId], "Decryption not requested");
+        require(!result.isDecrypted, "Already decrypted");
+        
+        // In production, verify the decryption proof here
+        // For now, we trust the caller (the researcher who owns the query)
+        // TODO: Add FHE.verifyDecryption() when available
+        
+        // Store decrypted values
+        result.decryptedSum = decryptedSum;
+        result.decryptedCount = decryptedCount;
+        result.isDecrypted = true;
+        
+        emit DecryptionCompleted(queryId, msg.sender, decryptedSum, decryptedCount);
+    }
+    
+    /**
+     * @notice Get decrypted query result
+     * @param queryId The query ID
+     * @return sum The decrypted sum (0 if not decrypted)
+     * @return count The decrypted count (0 if not decrypted)
+     * @return average The computed average (sum/count, 0 if count is 0)
+     * @return isReady Whether the result is decrypted and ready
+     */
+    function getDecryptedResult(uint256 queryId) 
+        external 
+        view 
+        returns (
+            uint64 sum,
+            uint32 count,
+            uint64 average,
+            bool isReady
+        ) 
+    {
+        QueryResult storage result = queryResults[queryId];
+        require(result.researcher == msg.sender, "Not your query");
+        
+        if (!result.isDecrypted) {
+            return (0, 0, 0, false);
+        }
+        
+        uint64 avg = result.decryptedCount > 0 
+            ? result.decryptedSum / uint64(result.decryptedCount) 
+            : 0;
+            
+        return (
+            result.decryptedSum,
+            result.decryptedCount,
+            avg,
+            true
+        );
     }
 }

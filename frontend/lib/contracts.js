@@ -234,10 +234,71 @@ export const CONTRACTS = {
           { "internalType": "uint256", "name": "encryptedSum", "type": "uint256" },
           { "internalType": "uint256", "name": "encryptedCount", "type": "uint256" },
           { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
-          { "internalType": "bool", "name": "isDecrypted", "type": "bool" }
+          { "internalType": "bool", "name": "isDecrypted", "type": "bool" },
+          { "internalType": "uint64", "name": "decryptedSum", "type": "uint64" },
+          { "internalType": "uint32", "name": "decryptedCount", "type": "uint32" }
         ],
         "stateMutability": "view",
         "type": "function"
+      },
+      // Decryption functions
+      {
+        "inputs": [{ "internalType": "uint256", "name": "queryId", "type": "uint256" }],
+        "name": "requestDecryption",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "uint256", "name": "queryId", "type": "uint256" }],
+        "name": "isDecryptionRequested",
+        "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          { "internalType": "uint256", "name": "queryId", "type": "uint256" },
+          { "internalType": "uint64", "name": "decryptedSum", "type": "uint64" },
+          { "internalType": "uint32", "name": "decryptedCount", "type": "uint32" },
+          { "internalType": "bytes", "name": "decryptionProof", "type": "bytes" }
+        ],
+        "name": "submitDecryptedResult",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "uint256", "name": "queryId", "type": "uint256" }],
+        "name": "getDecryptedResult",
+        "outputs": [
+          { "internalType": "uint64", "name": "sum", "type": "uint64" },
+          { "internalType": "uint32", "name": "count", "type": "uint32" },
+          { "internalType": "uint64", "name": "average", "type": "uint64" },
+          { "internalType": "bool", "name": "isReady", "type": "bool" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": true, "internalType": "uint256", "name": "queryId", "type": "uint256" },
+          { "indexed": true, "internalType": "address", "name": "researcher", "type": "address" }
+        ],
+        "name": "DecryptionRequested",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": true, "internalType": "uint256", "name": "queryId", "type": "uint256" },
+          { "indexed": true, "internalType": "address", "name": "researcher", "type": "address" },
+          { "indexed": false, "internalType": "uint64", "name": "decryptedSum", "type": "uint64" },
+          { "indexed": false, "internalType": "uint32", "name": "decryptedCount", "type": "uint32" }
+        ],
+        "name": "DecryptionCompleted",
+        "type": "event"
       },
       {
         "anonymous": false,
