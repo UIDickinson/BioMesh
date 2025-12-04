@@ -18,8 +18,7 @@ A decentralized platform for secure health data sharing using Fully Homomorphic 
 ### Prerequisites
 
 - Node.js 18+
-- MetaMask wallet with Sepolia testnet ETH
-- Git
+- Web3 wallet (Rabby,Metamask etc) with Sepolia testnet ETH
 
 ### 1. Clone & Install
 
@@ -80,8 +79,8 @@ Visit `http://localhost:3000`
 
 | Mode | Use Case | FHE Encryption | Setup |
 |------|----------|----------------|-------|
-| **Mock** | Local testing | Simulated | Default |
-| **Production** | Sepolia testnet | Real Zama FHE | See [SETUP_GUIDE.md](./SETUP_GUIDE.md) |
+| **Mock** | Local testing | Simulated | set false on env files |
+| **Production** | Sepolia testnet | Real Zama FHE | Set true (default) |
 
 ### Switch to Production Mode
 
