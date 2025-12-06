@@ -190,5 +190,47 @@ contract MockDataRegistry {
         emit BatchAccessGranted(recordIds, oracle, recordIds.length);
     }
     
+    // ============ Consent Management (New) ============
+    
+    enum ConsentLevel {
+        AggregateOnly,
+        IndividualAllowed
+    }
+    
+    // Start with k=1 for initial deployment, increase as user base grows
+    uint256 public constant K_ANONYMITY_THRESHOLD = 1;
+    
+    mapping(uint256 => ConsentLevel) public recordConsent;
+    
+    event ConsentUpdated(uint256 indexed recordId, ConsentLevel newLevel);
+    
+    function setConsent(uint256 recordId, uint8 consentLevel) external {
+        require(records[recordId].patient == msg.sender, "Not record owner");
+        require(consentLevel <= 1, "Invalid consent level");
+        require(records[recordId].isActive, "Record not active");
+        
+        recordConsent[recordId] = ConsentLevel(consentLevel);
+        emit ConsentUpdated(recordId, ConsentLevel(consentLevel));
+    }
+    
+    function allowsIndividualAccess(uint256 recordId) external view returns (bool) {
+        return records[recordId].isActive && 
+               recordConsent[recordId] == ConsentLevel.IndividualAllowed;
+    }
+    
+    function getConsentLevel(uint256 recordId) external view returns (ConsentLevel) {
+        return recordConsent[recordId];
+    }
+    
+    function countIndividualConsent(uint256[] calldata recordIds) external view returns (uint256 count) {
+        for (uint256 i = 0; i < recordIds.length; i++) {
+            if (records[recordIds[i]].isActive && 
+                recordConsent[recordIds[i]] == ConsentLevel.IndividualAllowed) {
+                count++;
+            }
+        }
+        return count;
+    }
+    
     receive() external payable {}
 }

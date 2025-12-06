@@ -7,6 +7,20 @@ import "encrypted-types/EncryptedTypes.sol";
 
 contract DataRegistry is ZamaEthereumConfig {
     
+    // ============ Enums ============
+    
+    /// @notice Consent levels for data sharing
+    enum ConsentLevel {
+        AggregateOnly,      // 0: Only aggregate statistics allowed
+        IndividualAllowed   // 1: Individual anonymized records can be shared
+    }
+    
+    // ============ Constants ============
+    
+    /// @notice Minimum k-anonymity threshold for individual record access
+    /// @dev Start with k=1 for initial deployment, increase as user base grows
+    uint256 public constant K_ANONYMITY_THRESHOLD = 1;
+    
     struct HealthRecord {
         euint32 age;
         euint32 diagnosis;
@@ -18,6 +32,9 @@ contract DataRegistry is ZamaEthereumConfig {
     }
     
     mapping(uint256 => HealthRecord) public records;
+    
+    /// @notice Consent level per record (stored separately to avoid struct changes)
+    mapping(uint256 => ConsentLevel) public recordConsent;
     
     mapping(address => uint256[]) private patientRecordIds;
     
@@ -54,6 +71,7 @@ contract DataRegistry is ZamaEthereumConfig {
     event OracleRevoked(address indexed oracle);
     event AccessGranted(uint256 indexed recordId, address indexed oracle);
     event BatchAccessGranted(uint256[] recordIds, address indexed oracle, uint256 count);
+    event ConsentUpdated(uint256 indexed recordId, ConsentLevel newLevel);
     
     // ============ Modifiers ============
     
@@ -311,6 +329,70 @@ contract DataRegistry is ZamaEthereumConfig {
         }
         
         emit BatchAccessGranted(recordIds, oracle, recordIds.length);
+    }
+    
+    // ============ Consent Management Functions ============
+    
+    /**
+     * @notice Set consent level for a record (called during submission or later)
+     * @param recordId The record ID
+     * @param consentLevel 0 = aggregate only, 1 = individual allowed
+     */
+    function setConsent(uint256 recordId, uint8 consentLevel) 
+        external 
+        onlyRecordOwner(recordId) 
+    {
+        require(consentLevel <= 1, "Invalid consent level");
+        require(records[recordId].isActive, "Record not active");
+        
+        recordConsent[recordId] = ConsentLevel(consentLevel);
+        emit ConsentUpdated(recordId, ConsentLevel(consentLevel));
+    }
+    
+    /**
+     * @notice Check if a record allows individual access
+     * @param recordId The record ID
+     * @return True if individual access is allowed
+     */
+    function allowsIndividualAccess(uint256 recordId) 
+        external 
+        view 
+        returns (bool) 
+    {
+        return records[recordId].isActive && 
+               recordConsent[recordId] == ConsentLevel.IndividualAllowed;
+    }
+    
+    /**
+     * @notice Get consent level for a record
+     * @param recordId The record ID
+     * @return The consent level
+     */
+    function getConsentLevel(uint256 recordId) 
+        external 
+        view 
+        returns (ConsentLevel) 
+    {
+        return recordConsent[recordId];
+    }
+    
+    /**
+     * @notice Count records with individual access consent (for k-anonymity check)
+     * @param recordIds Array of record IDs to check
+     * @return count Number of records allowing individual access
+     */
+    function countIndividualConsent(uint256[] calldata recordIds) 
+        external 
+        view 
+        returns (uint256 count) 
+    {
+        for (uint256 i = 0; i < recordIds.length; i++) {
+            if (records[recordIds[i]].isActive && 
+                recordConsent[recordIds[i]] == ConsentLevel.IndividualAllowed) {
+                count++;
+            }
+        }
+        return count;
     }
     
     // ============ Fallback Functions ============

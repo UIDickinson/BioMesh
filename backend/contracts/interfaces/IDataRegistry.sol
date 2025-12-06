@@ -5,6 +5,12 @@ import "encrypted-types/EncryptedTypes.sol";
 
 interface IDataRegistry {
     
+    // Consent levels enum
+    enum ConsentLevel {
+        AggregateOnly,      // 0: Only aggregate statistics allowed
+        IndividualAllowed   // 1: Individual anonymized records can be shared
+    }
+    
     struct HealthRecord {
         euint32 age;
         euint32 diagnosis;
@@ -28,6 +34,7 @@ interface IDataRegistry {
     
     event OracleAuthorized(address indexed oracle);
     event OracleRevoked(address indexed oracle);
+    event ConsentUpdated(uint256 indexed recordId, ConsentLevel newLevel);
     
     function getRecord(uint256 recordId) external view returns (HealthRecord memory);
     
@@ -68,4 +75,11 @@ interface IDataRegistry {
         uint256 timestamp,
         bool isActive
     );
+    
+    // New consent functions
+    function setConsent(uint256 recordId, uint8 consentLevel) external;
+    function allowsIndividualAccess(uint256 recordId) external view returns (bool);
+    function getConsentLevel(uint256 recordId) external view returns (ConsentLevel);
+    function countIndividualConsent(uint256[] calldata recordIds) external view returns (uint256);
+    function K_ANONYMITY_THRESHOLD() external view returns (uint256);
 }

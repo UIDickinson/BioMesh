@@ -45,6 +45,15 @@ contract ResearchOracle is ZamaEthereumConfig {
     /// @notice Mapping: queryId => decryption requested
     mapping(uint256 => bool) public decryptionRequested;
     
+    /// @notice Mapping: queryId => matching record IDs (for individual access queries)
+    mapping(uint256 => uint256[]) public queryMatchingRecords;
+    
+    /// @notice Mapping: queryId => is individual access query
+    mapping(uint256 => bool) public isIndividualAccessQuery;
+    
+    /// @notice Individual access query fee (higher than aggregate)
+    uint256 public individualQueryFee;
+    
     // ============ Events ============
     
     event QueryExecuted(
@@ -67,6 +76,14 @@ contract ResearchOracle is ZamaEthereumConfig {
         address indexed researcher,
         uint64 decryptedSum,
         uint32 decryptedCount
+    );
+    
+    event IndividualQueryExecuted(
+        uint256 indexed queryId,
+        address indexed researcher,
+        uint256 totalMatching,
+        uint256 individualAccessCount,
+        bool kAnonymityMet
     );
     
     // ============ Modifiers ============
@@ -95,6 +112,7 @@ contract ResearchOracle is ZamaEthereumConfig {
         dataRegistry = IDataRegistry(_dataRegistry);
         paymentProcessor = IPaymentProcessor(_paymentProcessor);
         queryFee = _queryFee;
+        individualQueryFee = _queryFee * 2; // Default: 2x aggregate fee
         owner = msg.sender;
     }
     
@@ -554,5 +572,138 @@ contract ResearchOracle is ZamaEthereumConfig {
             avg,
             true
         );
+    }
+    
+    // ============ Individual Records Query Functions ============
+    
+    /**
+     * @notice Query for individual anonymized records (with k-anonymity protection)
+     * @param minAge Minimum age filter
+     * @param maxAge Maximum age filter
+     * @param diagnosisCode Target diagnosis code
+     * @return queryId The query ID for result retrieval
+     * @dev Returns individual records only if k-anonymity threshold is met
+     */
+    function queryIndividualRecords(
+        uint32 minAge,
+        uint32 maxAge,
+        uint32 diagnosisCode
+    ) external payable returns (uint256) {
+        require(msg.value >= individualQueryFee, "Insufficient fee for individual query");
+        
+        // Execute the same FHE query logic as aggregate
+        uint256 queryId = _computeAverageBiomarkerRange(minAge, maxAge, diagnosisCode, 0, MAX_QUERY_BATCH);
+        
+        // Mark as individual access query
+        isIndividualAccessQuery[queryId] = true;
+        
+        // Store matching record IDs
+        QueryResult storage result = queryResults[queryId];
+        
+        // Count records with individual consent
+        uint256 totalRecords = dataRegistry.recordCount();
+        uint256 endIndex = totalRecords > MAX_QUERY_BATCH ? MAX_QUERY_BATCH : totalRecords;
+        
+        uint256[] memory tempMatching = new uint256[](endIndex);
+        uint256 matchCount = 0;
+        uint256 individualCount = 0;
+        
+        for (uint256 i = 0; i < endIndex && matchCount < MAX_QUERY_BATCH; i++) {
+            (
+                ,,,, // age, diagnosis, outcome, biomarker
+                ,    // patient
+                ,    // timestamp
+                bool isActive
+            ) = dataRegistry.records(i);
+            
+            if (isActive) {
+                tempMatching[matchCount] = i;
+                matchCount++;
+                
+                if (dataRegistry.allowsIndividualAccess(i)) {
+                    individualCount++;
+                }
+            }
+        }
+        
+        // Store matching records
+        uint256[] memory finalMatching = new uint256[](matchCount);
+        for (uint256 i = 0; i < matchCount; i++) {
+            finalMatching[i] = tempMatching[i];
+        }
+        queryMatchingRecords[queryId] = finalMatching;
+        
+        // Check k-anonymity
+        bool kAnonymityMet = individualCount >= dataRegistry.K_ANONYMITY_THRESHOLD();
+        
+        emit IndividualQueryExecuted(
+            queryId, 
+            msg.sender, 
+            matchCount, 
+            individualCount, 
+            kAnonymityMet
+        );
+        
+        return queryId;
+    }
+    
+    /**
+     * @notice Get matching record IDs for an individual access query
+     * @param queryId The query ID
+     * @return recordIds Array of matching record IDs (empty if k-anonymity not met)
+     * @return kAnonymityMet Whether k-anonymity threshold was met
+     * @return totalMatching Total number of matching records
+     * @return individualAccessCount Number of records allowing individual access
+     */
+    function getIndividualQueryResults(uint256 queryId) 
+        external 
+        view 
+        returns (
+            uint256[] memory recordIds,
+            bool kAnonymityMet,
+            uint256 totalMatching,
+            uint256 individualAccessCount
+        ) 
+    {
+        QueryResult storage result = queryResults[queryId];
+        require(result.researcher == msg.sender, "Not your query");
+        require(isIndividualAccessQuery[queryId], "Not an individual access query");
+        
+        uint256[] storage allMatching = queryMatchingRecords[queryId];
+        totalMatching = allMatching.length;
+        
+        // Count individual access records
+        for (uint256 i = 0; i < allMatching.length; i++) {
+            if (dataRegistry.allowsIndividualAccess(allMatching[i])) {
+                individualAccessCount++;
+            }
+        }
+        
+        kAnonymityMet = individualAccessCount >= dataRegistry.K_ANONYMITY_THRESHOLD();
+        
+        if (!kAnonymityMet) {
+            // Return empty array if k-anonymity not met
+            return (new uint256[](0), false, totalMatching, individualAccessCount);
+        }
+        
+        // Filter to only records with individual consent
+        uint256[] memory filtered = new uint256[](individualAccessCount);
+        uint256 idx = 0;
+        for (uint256 i = 0; i < allMatching.length; i++) {
+            if (dataRegistry.allowsIndividualAccess(allMatching[i])) {
+                filtered[idx] = allMatching[i];
+                idx++;
+            }
+        }
+        
+        return (filtered, true, totalMatching, individualAccessCount);
+    }
+    
+    /**
+     * @notice Update individual query fee
+     * @param newFee New fee for individual record queries
+     */
+    function updateIndividualQueryFee(uint256 newFee) external onlyOwner {
+        individualQueryFee = newFee;
     }
 }

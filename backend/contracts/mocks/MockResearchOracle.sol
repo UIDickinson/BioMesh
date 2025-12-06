@@ -367,4 +367,163 @@ contract MockResearchOracle {
             true
         );
     }
+    
+    // ============ Individual Records Query (Enhanced Feature) ============
+    
+    // Start with k=1 for initial deployment, increase as user base grows
+    uint256 public constant K_ANONYMITY_THRESHOLD = 1;
+    uint256 public individualQueryFee;
+    
+    struct AnonymizedRecord {
+        bytes32 anonymousId;
+        uint256 age;
+        uint256 diagnosis;
+        uint256 treatmentOutcome;
+        uint256 biomarker;
+    }
+    
+    struct IndividualQueryResult {
+        uint256 queryId;
+        address researcher;
+        uint256 matchCount;
+        bool kAnonymityMet;
+        AnonymizedRecord[] records;
+        uint256 timestamp;
+    }
+    
+    mapping(uint256 => IndividualQueryResult) internal individualResults;
+    uint256 public individualQueryCount;
+    
+    event IndividualAccessGranted(
+        uint256 indexed queryId,
+        address indexed researcher,
+        uint256 matchCount,
+        bool kAnonymityMet
+    );
+    
+    function setIndividualQueryFee(uint256 _fee) external onlyOwner {
+        individualQueryFee = _fee;
+    }
+    
+    function queryIndividualRecords(
+        uint32 diagnosisCode,
+        uint32 minAge,
+        uint32 maxAge,
+        uint256 maxResults
+    ) external payable returns (uint256) {
+        require(msg.value >= individualQueryFee, "Insufficient payment");
+        require(maxResults <= 100, "Max 100 results");
+        
+        uint256 totalRecords = dataRegistry.recordCount();
+        
+        // First pass: count matching records with individual consent
+        uint256 matchCount = 0;
+        for (uint256 i = 0; i < totalRecords && i < MAX_QUERY_BATCH; i++) {
+            (
+                uint256 age,
+                uint256 diagnosis,
+                ,
+                ,
+                ,
+                ,
+                bool isActive
+            ) = dataRegistry.records(i);
+            
+            if (!isActive) continue;
+            
+            // Check consent
+            if (!dataRegistry.allowsIndividualAccess(i)) continue;
+            
+            // Check criteria
+            if (age >= minAge && age <= maxAge && diagnosis == diagnosisCode) {
+                matchCount++;
+            }
+        }
+        
+        uint256 queryId = individualQueryCount++;
+        bool kAnonymityMet = matchCount >= K_ANONYMITY_THRESHOLD;
+        
+        // Create result storage
+        IndividualQueryResult storage result = individualResults[queryId];
+        result.queryId = queryId;
+        result.researcher = msg.sender;
+        result.matchCount = matchCount;
+        result.kAnonymityMet = kAnonymityMet;
+        result.timestamp = block.timestamp;
+        
+        // Only populate records if k-anonymity is met
+        if (kAnonymityMet) {
+            uint256 recordsAdded = 0;
+            for (uint256 i = 0; i < totalRecords && recordsAdded < maxResults; i++) {
+                (
+                    uint256 age,
+                    uint256 diagnosis,
+                    uint256 outcome,
+                    uint256 biomarker,
+                    ,
+                    ,
+                    bool isActive
+                ) = dataRegistry.records(i);
+                
+                if (!isActive) continue;
+                if (!dataRegistry.allowsIndividualAccess(i)) continue;
+                
+                if (age >= minAge && age <= maxAge && diagnosis == diagnosisCode) {
+                    // Create anonymized record
+                    bytes32 anonId = keccak256(abi.encodePacked(i, block.timestamp, queryId));
+                    
+                    result.records.push(AnonymizedRecord({
+                        anonymousId: anonId,
+                        age: age,
+                        diagnosis: diagnosis,
+                        treatmentOutcome: outcome,
+                        biomarker: biomarker
+                    }));
+                    
+                    recordsAdded++;
+                }
+            }
+        }
+        
+        emit IndividualAccessGranted(queryId, msg.sender, matchCount, kAnonymityMet);
+        
+        return queryId;
+    }
+    
+    function getIndividualQueryResult(uint256 queryId)
+        external
+        view
+        returns (
+            uint256 _queryId,
+            address researcher,
+            uint256 matchCount,
+            bool kAnonymityMet,
+            uint256 recordCount,
+            uint256 timestamp
+        )
+    {
+        IndividualQueryResult storage result = individualResults[queryId];
+        require(result.researcher == msg.sender, "Not your query");
+        
+        return (
+            result.queryId,
+            result.researcher,
+            result.matchCount,
+            result.kAnonymityMet,
+            result.records.length,
+            result.timestamp
+        );
+    }
+    
+    function getIndividualRecord(uint256 queryId, uint256 index)
+        external
+        view
+        returns (AnonymizedRecord memory)
+    {
+        IndividualQueryResult storage result = individualResults[queryId];
+        require(result.researcher == msg.sender, "Not your query");
+        require(index < result.records.length, "Index out of bounds");
+        
+        return result.records[index];
+    }
 }
