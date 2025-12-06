@@ -4,24 +4,34 @@ import { useState, useEffect } from 'react';
 import { useWallet } from '@/hooks/useWallet';
 import { useResearchOracle } from '@/hooks/useResearchOracle';
 import QueryBuilder from '@/components/QueryBuilder';
-import { ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import Link from 'next/link';
 
 export default function QueryPage() {
   const { signer, isConnected } = useWallet();
-  const { computeAverageBiomarker, countPatientsByCriteria, getQueryFee, isLoading } = useResearchOracle(signer);
+  const { 
+    computeAverageBiomarker, 
+    countPatientsByCriteria, 
+    queryIndividualRecords,
+    getQueryFee, 
+    getIndividualQueryFee,
+    isLoading 
+  } = useResearchOracle(signer);
   const [queryFee, setQueryFee] = useState('0.01');
+  const [individualQueryFee, setIndividualQueryFee] = useState('0.02');
   const [result, setResult] = useState(null);
 
   useEffect(() => {
     if (isConnected && signer) {
-      loadFee();
+      loadFees();
     }
   }, [isConnected, signer]);
 
-  const loadFee = async () => {
+  const loadFees = async () => {
     const fee = await getQueryFee();
     setQueryFee(fee);
+    const indFee = await getIndividualQueryFee();
+    setIndividualQueryFee(indFee);
   };
 
   const handleSubmit = async (queryType, params) => {
@@ -34,10 +44,17 @@ export default function QueryPage() {
         parseInt(params.maxAge),
         parseInt(params.diagnosisCode)
       );
-    } else {
+    } else if (queryType === 'count') {
       res = await countPatientsByCriteria(
         parseInt(params.diagnosisCode),
         parseInt(params.minOutcome)
+      );
+    } else if (queryType === 'individual') {
+      res = await queryIndividualRecords(
+        parseInt(params.diagnosisCode),
+        parseInt(params.minAge),
+        parseInt(params.maxAge),
+        parseInt(params.maxResults || 10)
       );
     }
 
@@ -79,24 +96,45 @@ export default function QueryPage() {
             ? 'bg-green-500/10 border-green-500/20 text-green-600 dark:text-green-400'
             : 'bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400'
         }`}>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-start space-x-2">
             {result.success ? (
-              <>
-                <CheckCircle className="h-5 w-5" />
-                <span>Query executed successfully! Query ID: {result.queryId}</span>
-              </>
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="h-5 w-5" />
+                  <span className="font-medium">Query executed successfully!</span>
+                </div>
+                <div className="text-sm ml-7 space-y-1">
+                  <p>Query ID: {result.queryId}</p>
+                  {result.matchCount !== undefined && (
+                    <p>Matching Records: {result.matchCount}</p>
+                  )}
+                  {result.kAnonymityMet !== undefined && (
+                    <p className="flex items-center space-x-1">
+                      <FileText className="h-4 w-4" />
+                      <span>
+                        Individual Access: {result.kAnonymityMet ? 'Granted ✓' : 'Denied (insufficient matches)'}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              </div>
             ) : (
-              <>
+              <div className="flex items-center space-x-2">
                 <AlertCircle className="h-5 w-5" />
                 <span>Error: {result.error}</span>
-              </>
+              </div>
             )}
           </div>
         </div>
       )}
 
       <div className="glass-morphism rounded-xl p-8 border border-primary-500/20">
-        <QueryBuilder onSubmit={handleSubmit} isLoading={isLoading} queryFee={queryFee} />
+        <QueryBuilder 
+          onSubmit={handleSubmit} 
+          isLoading={isLoading} 
+          queryFee={queryFee} 
+          individualQueryFee={individualQueryFee}
+        />
       </div>
 
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">

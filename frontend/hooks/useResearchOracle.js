@@ -27,6 +27,16 @@ export function useResearchOracle(signer) {
     }
   }, [getContract]);
 
+  const getIndividualQueryFee = useCallback(async () => {
+    try {
+      const contract = getContract();
+      const fee = await contract.individualQueryFee();
+      return ethers.formatEther(fee);
+    } catch (err) {
+      return '0.02'; // Default 2x aggregate fee
+    }
+  }, [getContract]);
+
   const getTotalQueries = useCallback(async () => {
     try {
       const contract = getContract();
@@ -214,11 +224,117 @@ export function useResearchOracle(signer) {
     }
   };
 
+  // ============ Individual Records Query Functions ============
+
+  const queryIndividualRecords = async (diagnosisCode, minAge, maxAge, maxResults = 10) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const contract = getContract();
+      const fee = await contract.individualQueryFee();
+      
+      console.log('🔍 Executing individual records query:', { diagnosisCode, minAge, maxAge, fee: ethers.formatEther(fee) });
+      
+      // Note: Contract signature is queryIndividualRecords(minAge, maxAge, diagnosisCode)
+      const tx = await contract.queryIndividualRecords(
+        minAge,
+        maxAge,
+        diagnosisCode,
+        { value: fee }
+      );
+
+      const receipt = await tx.wait();
+      
+      // Look for IndividualQueryExecuted event or fallback to QueryExecuted
+      let queryId, matchCount, kAnonymityMet;
+      
+      for (const log of receipt.logs) {
+        try {
+          const parsed = contract.interface.parseLog(log);
+          if (parsed.name === 'IndividualQueryExecuted') {
+            queryId = parsed.args.queryId;
+            matchCount = parsed.args.totalMatching;
+            kAnonymityMet = parsed.args.kAnonymityMet;
+            break;
+          } else if (parsed.name === 'QueryExecuted' && !queryId) {
+            queryId = parsed.args.queryId;
+          }
+        } catch {}
+      }
+      
+      console.log('✅ Individual query executed:', { queryId: queryId?.toString(), matchCount: matchCount?.toString(), kAnonymityMet });
+      
+      return { 
+        success: true, 
+        queryId: queryId?.toString(),
+        matchCount: matchCount ? Number(matchCount) : 0,
+        kAnonymityMet: kAnonymityMet || false
+      };
+    } catch (err) {
+      console.error('❌ Error executing individual query:', err);
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Get individual query results (recordIds, k-anonymity status, counts)
+  const getIndividualQueryResults = useCallback(async (queryId) => {
+    try {
+      const contract = getContract();
+      const result = await contract.getIndividualQueryResults(queryId);
+      return {
+        recordIds: result.recordIds || result[0] || [],
+        kAnonymityMet: result.kAnonymityMet ?? result[1] ?? false,
+        totalMatching: Number(result.totalMatching || result[2] || 0),
+        individualAccessCount: Number(result.individualAccessCount || result[3] || 0),
+      };
+    } catch (err) {
+      console.error('Error getting individual query results:', err);
+      return null;
+    }
+  }, [getContract]);
+
+  // Alias for backwards compatibility
+  const getIndividualQueryResult = getIndividualQueryResults;
+
+  // Get all individual records (fetches from DataRegistry for each recordId)
+  const getAllIndividualRecords = useCallback(async (queryId) => {
+    try {
+      const result = await getIndividualQueryResults(queryId);
+      if (!result || !result.kAnonymityMet || result.recordIds.length === 0) {
+        console.log('No individual records available:', result);
+        return [];
+      }
+      
+      // Note: In production, we'd fetch actual record data from DataRegistry
+      // For now, return the record IDs with placeholder data
+      // The actual encrypted data would need FHE decryption
+      const records = result.recordIds.map((recordId, index) => ({
+        anonymousId: `0x${recordId.toString(16).padStart(64, '0')}`,
+        recordId: Number(recordId),
+        // These would come from DataRegistry with proper decryption
+        age: 0,
+        diagnosis: 0,
+        treatmentOutcome: 0,
+        biomarker: 0,
+      }));
+      
+      return records;
+    } catch (err) {
+      console.error('Error getting all individual records:', err);
+      return [];
+    }
+  }, [getIndividualQueryResults]);
+
   return {
     computeAverageBiomarker,
     countPatientsByCriteria,
     getQueryResult,
     getQueryFee,
+    getIndividualQueryFee,
     getTotalQueries,
     getResearcherQueries,
     // Decryption functions
@@ -226,6 +342,11 @@ export function useResearchOracle(signer) {
     isDecryptionRequested,
     getDecryptedResult,
     submitDecryptedResult,
+    // Individual records query functions
+    queryIndividualRecords,
+    getIndividualQueryResult,
+    getIndividualQueryResults,
+    getAllIndividualRecords,
     isLoading,
     error,
   };

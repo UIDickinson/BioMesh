@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useWallet } from '@/hooks/useWallet';
 import { useResearchOracle } from '@/hooks/useResearchOracle';
 import { useUserDecryption } from '@/hooks/useUserDecryption';
-import { ArrowLeft, Search, Lock, RefreshCw, Unlock, CheckCircle, Loader2, Zap } from 'lucide-react';
+import { ArrowLeft, Search, Lock, RefreshCw, Unlock, CheckCircle, Loader2, Zap, Users, Database, Hash, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { formatTimestamp } from '@/lib/utils';
 import Link from 'next/link';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -14,6 +14,8 @@ export default function ResultsPage() {
   const { 
     getResearcherQueries, 
     getQueryResult,
+    getIndividualQueryResult,
+    getAllIndividualRecords,
     isLoading: hookLoading 
   } = useResearchOracle(signer);
   const { 
@@ -24,9 +26,32 @@ export default function ResultsPage() {
   } = useUserDecryption(signer);
   
   const [queries, setQueries] = useState([]);
+  const [individualQueries, setIndividualQueries] = useState({});
+  const [individualRecords, setIndividualRecords] = useState({});
+  const [loadingRecords, setLoadingRecords] = useState({});
   const [loading, setLoading] = useState(false);
   const [decryptingId, setDecryptingId] = useState(null);
   const [decryptedResults, setDecryptedResults] = useState({});
+
+  // Load individual query details and records
+  const loadIndividualRecords = useCallback(async (queryId) => {
+    setLoadingRecords(prev => ({ ...prev, [queryId]: true }));
+    try {
+      const result = await getIndividualQueryResult(queryId);
+      console.log('Individual query result:', result);
+      if (result) {
+        setIndividualQueries(prev => ({ ...prev, [queryId]: result }));
+        if (result.kAnonymityMet && result.recordIds && result.recordIds.length > 0) {
+          const records = await getAllIndividualRecords(queryId);
+          setIndividualRecords(prev => ({ ...prev, [queryId]: records }));
+        }
+      }
+    } catch (err) {
+      console.error(`Error loading individual records for query ${queryId}:`, err);
+    } finally {
+      setLoadingRecords(prev => ({ ...prev, [queryId]: false }));
+    }
+  }, [getIndividualQueryResult, getAllIndividualRecords]);
 
   const loadQueries = useCallback(async () => {
     if (!signer || !address) return;
@@ -231,6 +256,110 @@ export default function ResultsPage() {
                       </div>
                     </div>
                   </div>
+                )}
+
+                {/* Individual Records Section */}
+                {individualQueries[query.id] && (
+                  <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4 mb-4">
+                    <h4 className="font-semibold text-purple-600 dark:text-purple-400 mb-2 flex items-center space-x-2">
+                      <Database className="h-4 w-4" />
+                      <span>Individual Records Query</span>
+                    </h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mb-4">
+                      <div>
+                        <p className="text-gray-500 flex items-center gap-1">
+                          <Users className="h-3 w-3" /> Total Matching
+                        </p>
+                        <p className="font-bold text-lg">{individualQueries[query.id].totalMatching}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500 flex items-center gap-1">
+                          <Database className="h-3 w-3" /> With Individual Consent
+                        </p>
+                        <p className="font-bold text-lg">{individualQueries[query.id].individualAccessCount}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500 flex items-center gap-1">
+                          {individualQueries[query.id].kAnonymityMet ? (
+                            <ShieldCheck className="h-3 w-3 text-green-500" />
+                          ) : (
+                            <ShieldAlert className="h-3 w-3 text-red-500" />
+                          )}
+                          K-Anonymity
+                        </p>
+                        <p className={`font-bold text-lg ${individualQueries[query.id].kAnonymityMet ? 'text-green-500' : 'text-red-500'}`}>
+                          {individualQueries[query.id].kAnonymityMet ? 'Met' : 'Not Met'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Individual Records Table */}
+                    {individualRecords[query.id] && individualRecords[query.id].length > 0 && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-purple-500/20">
+                              <th className="py-2 px-2 text-left text-gray-500">
+                                <div className="flex items-center gap-1">
+                                  <Hash className="h-3 w-3" /> Record ID
+                                </div>
+                              </th>
+                              <th className="py-2 px-2 text-left text-gray-500">Anon ID</th>
+                              <th className="py-2 px-2 text-left text-gray-500">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {individualRecords[query.id].map((record, idx) => (
+                              <tr key={idx} className="border-b border-purple-500/10 hover:bg-purple-500/5">
+                                <td className="py-2 px-2 font-mono text-xs">
+                                  #{record.recordId}
+                                </td>
+                                <td className="py-2 px-2 font-mono text-xs">
+                                  {record.anonymousId ? `${record.anonymousId.slice(0, 14)}...` : 'N/A'}
+                                </td>
+                                <td className="py-2 px-2">
+                                  <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-600 dark:text-green-400 text-xs">
+                                    Consented
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Note: Full record data (age, diagnosis, outcome, biomarker) requires FHE decryption from DataRegistry
+                        </p>
+                      </div>
+                    )}
+
+                    {!individualQueries[query.id].kAnonymityMet && (
+                      <div className="bg-red-500/10 border border-red-500/20 rounded p-3 text-sm text-red-600 dark:text-red-400">
+                        <ShieldAlert className="h-4 w-4 inline mr-2" />
+                        K-anonymity threshold not met. Individual records cannot be accessed to protect patient privacy.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Load Individual Records Button */}
+                {!individualQueries[query.id] && (
+                  <button
+                    onClick={() => loadIndividualRecords(query.id)}
+                    disabled={loadingRecords[query.id]}
+                    className="w-full py-2 mb-2 bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-lg hover:bg-purple-500/30 transition-all disabled:opacity-50 flex items-center justify-center space-x-2 text-sm"
+                  >
+                    {loadingRecords[query.id] ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Loading Individual Records...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Database className="h-4 w-4" />
+                        <span>Check for Individual Records</span>
+                      </>
+                    )}
+                  </button>
                 )}
 
                 {!isDecryptedNow && (

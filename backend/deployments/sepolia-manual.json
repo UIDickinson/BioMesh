@@ -2,14 +2,19 @@
   "network": "sepolia",
   "chainId": 11155111,
   "deployer": "0xC558F87a83BB747a5E7d19D6387D2dFBC0c0bA60",
-  "timestamp": "2025-12-04T15:26:01.795Z",
+  "timestamp": "2025-12-06T16:38:24.670Z",
   "contracts": {
-    "DataRegistry": "0xd51ca70ce024f2fdB1bC02692549C819da5407A2",
-    "PaymentProcessor": "0x17560A4F6D5783D6057A042A72B7BE4093DD8714",
-    "ResearchOracle": "0xc279f4C2ec01dd7290646D8A2627e78f6940621b"
+    "DataRegistry": "0xB2fb41e0E07aeAaA57B1CB71967c3500aC715F9F",
+    "PaymentProcessor": "0xb1450B5f8aE6DE2dc89225605219e07a7F7aCF21",
+    "ResearchOracle": "0x2F7603e5E9ac4F0a443996731a825Fa237d1B714"
   },
   "configuration": {
     "queryFee": "10000000000000000",
     "platformWallet": "0xC558F87a83BB747a5E7d19D6387D2dFBC0c0bA60"
+  },
+  "features": {
+    "consentManagement": true,
+    "individualRecordsQuery": true,
+    "kAnonymityThreshold": 1
   }
 }

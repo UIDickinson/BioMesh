@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { validateAge, validateDiagnosis, validateOutcome } from '@/lib/utils';
-import { Lock, Loader2 } from 'lucide-react';
+import { Lock, Loader2, Shield, Users } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 
 export default function PatientForm({ onSubmit, isLoading }) {
@@ -10,7 +10,8 @@ export default function PatientForm({ onSubmit, isLoading }) {
     age: '',
     diagnosis: '',
     outcome: '',
-    biomarker: ''
+    biomarker: '',
+    consentLevel: '0' // Default: aggregate only
   });
   const [errors, setErrors] = useState({});
 
@@ -46,7 +47,7 @@ export default function PatientForm({ onSubmit, isLoading }) {
     e.preventDefault();
     if (validate()) {
       await onSubmit(formData);
-      setFormData({ age: '', diagnosis: '', outcome: '', biomarker: '' });
+      setFormData({ age: '', diagnosis: '', outcome: '', biomarker: '', consentLevel: '0' });
     }
   };
 
@@ -115,6 +116,68 @@ export default function PatientForm({ onSubmit, isLoading }) {
             disabled={isLoading}
           />
           {errors.biomarker && <p className="text-red-500 text-sm mt-1">{errors.biomarker}</p>}
+        </div>
+      </div>
+
+      {/* Consent Level Selector */}
+      <div className="mt-6">
+        <label className="block text-sm font-medium mb-3">
+          Data Sharing Consent <span className="text-red-500">*</span>
+        </label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label 
+            className={`relative flex items-start p-4 rounded-lg border-2 cursor-pointer transition-all ${
+              formData.consentLevel === '0' 
+                ? 'border-primary-500 bg-primary-500/10' 
+                : 'border-gray-300 dark:border-gray-600 hover:border-primary-300'
+            }`}
+          >
+            <input
+              type="radio"
+              name="consentLevel"
+              value="0"
+              checked={formData.consentLevel === '0'}
+              onChange={handleChange}
+              className="sr-only"
+              disabled={isLoading}
+            />
+            <div className="flex items-start space-x-3">
+              <Users className={`h-6 w-6 mt-0.5 ${formData.consentLevel === '0' ? 'text-primary-500' : 'text-gray-400'}`} />
+              <div>
+                <span className="block font-medium">Aggregate Only</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  Your data contributes to statistical summaries only. Individual records are never shared.
+                </span>
+              </div>
+            </div>
+          </label>
+          
+          <label 
+            className={`relative flex items-start p-4 rounded-lg border-2 cursor-pointer transition-all ${
+              formData.consentLevel === '1' 
+                ? 'border-green-500 bg-green-500/10' 
+                : 'border-gray-300 dark:border-gray-600 hover:border-green-300'
+            }`}
+          >
+            <input
+              type="radio"
+              name="consentLevel"
+              value="1"
+              checked={formData.consentLevel === '1'}
+              onChange={handleChange}
+              className="sr-only"
+              disabled={isLoading}
+            />
+            <div className="flex items-start space-x-3">
+              <Shield className={`h-6 w-6 mt-0.5 ${formData.consentLevel === '1' ? 'text-green-500' : 'text-gray-400'}`} />
+              <div>
+                <span className="block font-medium">Allow Individual Access</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  Anonymized records can be shared with researchers. Earns higher rewards.
+                </span>
+              </div>
+            </div>
+          </label>
         </div>
       </div>
 

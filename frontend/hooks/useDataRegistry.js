@@ -133,6 +133,21 @@ export function useDataRegistry(signer) {
       
       if (recordId) {
         console.log('🎉 Record submitted with ID:', recordId);
+        
+        // Set consent level if provided (default is 0 = aggregate only)
+        const consentLevel = parseInt(data.consentLevel || '0');
+        if (consentLevel > 0) {
+          console.log('📋 Setting consent level to:', consentLevel, '(Individual Access OK)');
+          try {
+            const consentTx = await contract.setConsent(recordId, consentLevel);
+            console.log('📤 Consent transaction sent:', consentTx.hash);
+            await consentTx.wait();
+            console.log('✅ Consent level set successfully');
+          } catch (consentErr) {
+            console.error('⚠️ Failed to set consent level:', consentErr);
+            // Don't fail the whole submission, just warn
+          }
+        }
       } else {
         console.log('⚠️ Record submitted but could not parse record ID from events');
       }
@@ -277,11 +292,71 @@ export function useDataRegistry(signer) {
     }
   }, [getContract]);
 
+  // ============ Consent Management ============
+
+  const updateConsentLevel = useCallback(async (recordId, consentLevel) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      if (!signer) {
+        throw new Error('Wallet not connected');
+      }
+      
+      const contract = getContract();
+      console.log('📝 Updating consent for record:', recordId, 'to level:', consentLevel);
+      
+      const tx = await contract.updateConsentLevel(recordId, consentLevel);
+      console.log('📤 Transaction sent:', tx.hash);
+      
+      const receipt = await tx.wait();
+      console.log('✅ Consent updated');
+      
+      return { 
+        success: true, 
+        txHash: receipt.hash,
+        message: `Consent level for record #${recordId} updated to ${consentLevel === 1 ? 'Individual Access Allowed' : 'Aggregate Only'}`
+      };
+    } catch (err) {
+      console.error('❌ Update consent error:', err);
+      const errorMessage = err.reason || err.message || 'Failed to update consent';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setIsLoading(false);
+    }
+  }, [signer, getContract]);
+
+  const getRecordConsent = useCallback(async (recordId) => {
+    try {
+      const contract = getContract();
+      const consent = await contract.getRecordConsent(recordId);
+      return Number(consent);
+    } catch (err) {
+      console.error('Failed to get record consent:', err);
+      return 0;
+    }
+  }, [getContract]);
+
+  const hasIndividualConsent = useCallback(async (recordId) => {
+    try {
+      const contract = getContract();
+      return await contract.hasIndividualConsent(recordId);
+    } catch (err) {
+      console.error('Failed to check individual consent:', err);
+      return false;
+    }
+  }, [getContract]);
+
   return {
     submitHealthData,
     revokeRecord,
     getPatientRecords,
     getRecordCount,
+    // Consent management
+    updateConsentLevel,
+    getRecordConsent,
+    hasIndividualConsent,
     isLoading,
     error,
     clearError: () => setError(null),

@@ -104,6 +104,50 @@ export const CONTRACTS = {
         ],
         "name": "RecordRevoked",
         "type": "event"
+      },
+      // Consent Management
+      {
+        "inputs": [
+          { "internalType": "uint256", "name": "recordId", "type": "uint256" },
+          { "internalType": "uint8", "name": "consentLevel", "type": "uint8" }
+        ],
+        "name": "setConsent",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          { "internalType": "uint256", "name": "recordId", "type": "uint256" },
+          { "internalType": "uint8", "name": "newConsent", "type": "uint8" }
+        ],
+        "name": "updateConsentLevel",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "uint256", "name": "recordId", "type": "uint256" }],
+        "name": "getRecordConsent",
+        "outputs": [{ "internalType": "uint8", "name": "", "type": "uint8" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "uint256", "name": "recordId", "type": "uint256" }],
+        "name": "hasIndividualConsent",
+        "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": true, "internalType": "uint256", "name": "recordId", "type": "uint256" },
+          { "indexed": false, "internalType": "uint8", "name": "newConsent", "type": "uint8" }
+        ],
+        "name": "ConsentUpdated",
+        "type": "event"
       }
     ]
   },
@@ -320,6 +364,49 @@ export const CONTRACTS = {
           { "indexed": false, "internalType": "uint256", "name": "fee", "type": "uint256" }
         ],
         "name": "QueryExecuted",
+        "type": "event"
+      },
+      // Individual Records Query
+      {
+        "inputs": [],
+        "name": "individualQueryFee",
+        "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          { "internalType": "uint32", "name": "minAge", "type": "uint32" },
+          { "internalType": "uint32", "name": "maxAge", "type": "uint32" },
+          { "internalType": "uint32", "name": "diagnosisCode", "type": "uint32" }
+        ],
+        "name": "queryIndividualRecords",
+        "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+        "stateMutability": "payable",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "uint256", "name": "queryId", "type": "uint256" }],
+        "name": "getIndividualQueryResults",
+        "outputs": [
+          { "internalType": "uint256[]", "name": "recordIds", "type": "uint256[]" },
+          { "internalType": "bool", "name": "kAnonymityMet", "type": "bool" },
+          { "internalType": "uint256", "name": "totalMatching", "type": "uint256" },
+          { "internalType": "uint256", "name": "individualAccessCount", "type": "uint256" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": true, "internalType": "uint256", "name": "queryId", "type": "uint256" },
+          { "indexed": true, "internalType": "address", "name": "researcher", "type": "address" },
+          { "indexed": false, "internalType": "uint256", "name": "totalMatching", "type": "uint256" },
+          { "indexed": false, "internalType": "uint256", "name": "individualAccessCount", "type": "uint256" },
+          { "indexed": false, "internalType": "bool", "name": "kAnonymityMet", "type": "bool" }
+        ],
+        "name": "IndividualQueryExecuted",
         "type": "event"
       }
     ]
