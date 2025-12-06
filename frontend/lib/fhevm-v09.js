@@ -35,7 +35,16 @@ export async function initializeFhevm(provider) {
     console.log('🔄 Initializing FHEVM v0.9...');
     
     // Dynamic import of the relayer SDK (web version for browser)
-    const { createInstance, SepoliaConfig } = await import('@zama-fhe/relayer-sdk/web');
+    const { initSDK, createInstance, SepoliaConfig } = await import('@zama-fhe/relayer-sdk/web');
+    
+    // IMPORTANT: Initialize the WASM modules first
+    console.log('📦 Initializing SDK (WASM modules)...');
+    await initSDK();
+    console.log('✅ SDK initialized');
+    
+    // Now create the instance with SepoliaConfig
+    console.log('🔗 Creating FHEVM instance with SepoliaConfig...');
+    console.log('   Chain ID:', SepoliaConfig.chainId);
     
     fhevmInstance = await createInstance(SepoliaConfig);
     console.log('✅ FHEVM v0.9 initialized successfully');
