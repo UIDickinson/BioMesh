@@ -12,10 +12,22 @@ interface IDataRegistry {
     }
     
     struct HealthRecord {
-        euint32 age;
-        euint32 diagnosis;
-        euint32 treatmentOutcome;
-        euint64 biomarker;
+        // Core demographics
+        euint32 age;              // 0-120, NULL_UINT32 = not provided
+        euint8 gender;            // 0=Male, 1=Female, 2=Other, NULL_UINT8 = not provided
+        euint8 ethnicity;         // NIH categories: 1-7, NULL_UINT8 = not provided
+        
+        // Clinical data
+        euint32 diagnosis;        // ICD-10 category code
+        euint32 treatmentOutcome; // 0-100 scale, NULL_UINT32 = not provided
+        euint64 biomarker;        // Primary biomarker value
+        
+        // Vitals (optional)
+        euint16 bmi;              // Stored as x10 (e.g., 245 = 24.5), NULL_UINT16 = not provided
+        euint16 systolicBP;       // mmHg, NULL_UINT16 = not provided  
+        euint16 diastolicBP;      // mmHg, NULL_UINT16 = not provided
+        
+        // Metadata
         address patient;
         uint256 timestamp;
         bool isActive;
@@ -50,9 +62,14 @@ interface IDataRegistry {
     
     function submitHealthData(
         externalEuint32 encryptedAge,
+        externalEuint8 encryptedGender,
+        externalEuint8 encryptedEthnicity,
         externalEuint32 encryptedDiagnosis,
         externalEuint32 encryptedOutcome,
         externalEuint64 encryptedBiomarker,
+        externalEuint16 encryptedBMI,
+        externalEuint16 encryptedSystolicBP,
+        externalEuint16 encryptedDiastolicBP,
         bytes calldata inputProof
     ) external returns (uint256);
     
@@ -68,9 +85,14 @@ interface IDataRegistry {
     
     function records(uint256 recordId) external view returns (
         euint32 age,
+        euint8 gender,
+        euint8 ethnicity,
         euint32 diagnosis,
         euint32 treatmentOutcome,
         euint64 biomarker,
+        euint16 bmi,
+        euint16 systolicBP,
+        euint16 diastolicBP,
         address patient,
         uint256 timestamp,
         bool isActive

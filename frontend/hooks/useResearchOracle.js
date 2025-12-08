@@ -329,6 +329,64 @@ export function useResearchOracle(signer) {
     }
   }, [getIndividualQueryResults]);
 
+  // Fetch encrypted record data from DataRegistry for researcher decryption
+  const fetchEncryptedRecords = useCallback(async (recordIds) => {
+    if (!signer) {
+      throw new Error('Wallet not connected');
+    }
+
+    try {
+      console.log(`📋 Fetching encrypted data for ${recordIds.length} records...`);
+      
+      // Get DataRegistry contract
+      const dataRegistryContract = new ethers.Contract(
+        CONTRACTS.DataRegistry.address,
+        CONTRACTS.DataRegistry.abi,
+        signer
+      );
+
+      const encryptedRecords = [];
+
+      for (const recordId of recordIds) {
+        try {
+          // Fetch the record struct from DataRegistry
+          // Note: getRecord() returns the HealthRecord struct
+          const record = await dataRegistryContract.getRecord(recordId);
+          
+          encryptedRecords.push({
+            recordId: Number(recordId),
+            // Encrypted handles (FHE ciphertexts)
+            age: record.age,
+            gender: record.gender,
+            ethnicity: record.ethnicity,
+            diagnosis: record.diagnosis,
+            treatmentOutcome: record.treatmentOutcome,
+            biomarker: record.biomarker,
+            bmi: record.bmi,
+            systolicBP: record.systolicBP,
+            diastolicBP: record.diastolicBP,
+            // Metadata (not encrypted)
+            patient: record.patient,
+            timestamp: Number(record.timestamp),
+            isActive: record.isActive,
+          });
+          
+          console.log(`   Record ${recordId}: fetched encrypted handles`);
+        } catch (err) {
+          console.error(`Failed to fetch record ${recordId}:`, err);
+          // Continue with other records
+        }
+      }
+
+      console.log(`✅ Fetched ${encryptedRecords.length} encrypted records`);
+      return encryptedRecords;
+
+    } catch (err) {
+      console.error('❌ Error fetching encrypted records:', err);
+      throw err;
+    }
+  }, [signer]);
+
   return {
     computeAverageBiomarker,
     countPatientsByCriteria,
@@ -347,6 +405,8 @@ export function useResearchOracle(signer) {
     getIndividualQueryResult,
     getIndividualQueryResults,
     getAllIndividualRecords,
+    // Encrypted record fetch for researcher decryption
+    fetchEncryptedRecords,
     isLoading,
     error,
   };

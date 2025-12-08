@@ -2,29 +2,29 @@
   "network": "sepolia",
   "chainId": 11155111,
   "deployer": "0xC558F87a83BB747a5E7d19D6387D2dFBC0c0bA60",
-  "timestamp": "2025-12-08T16:18:36.580Z",
-  "deploymentDuration": "77.23s",
+  "timestamp": "2025-12-08T15:15:12.911Z",
+  "deploymentDuration": "80.99s",
   "contracts": {
     "DataRegistry": {
-      "address": "0x09CEf6B36433614e0Db6875940EDEF51dED8d284",
-      "blockNumber": 9796974
+      "address": "0xbd105161e39dD2C932eE4b26afFFB11D36a2c47d",
+      "blockNumber": 9796662
     },
     "PaymentProcessor": {
-      "address": "0x5Ca58CFdaFEa511E308aF0E76777C4f63C0c9C76",
-      "blockNumber": 9796975
+      "address": "0x698DBfec2795851f323Ece5aDD2d46222C531811",
+      "blockNumber": 9796663
     },
     "ResearchOracle": {
-      "address": "0x59B9975Fc50C9F4DAfA40Ad25158Cbb557a15226",
-      "blockNumber": 9796976
+      "address": "0xF8d4DD5B0684EAd0629C46616445AD4138D7dF08",
+      "blockNumber": 9796664
     },
     "ConsentRegistry": {
-      "address": "0xC4d42Ae8F522BEe5739E419e61752a15AbbFc52a",
-      "blockNumber": 9796977,
+      "address": "0xb59F2b34fF5013E5453B61C6F29839D4Fd8793D9",
+      "blockNumber": 9796665,
       "worldIdVerifier": "0x0000000000000000000000000000000000000000"
     },
     "VerificationRegistry": {
-      "address": "0x21e97601033937a1ee9b3EB08d887D75d2436bF3",
-      "blockNumber": 9796978
+      "address": "0xe7cb877287c7652467e7872Aa3337c84B264665C",
+      "blockNumber": 9796666
     }
   },
   "configuration": {

@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { useWallet } from '@/hooks/useWallet';
 import { useDataRegistry } from '@/hooks/useDataRegistry';
 import { usePaymentProcessor } from '@/hooks/usePaymentProcessor';
+import { useConsent } from '@/hooks/useConsent';
 import StatsCard from '@/components/StatsCard';
-import { FileText, Coins, Database, ArrowRight, User } from 'lucide-react';
+import { ConsentStatusBadge } from '@/components/ConsentGate';
+import { FileText, Coins, Database, ArrowRight, User, Shield, FileCheck } from 'lucide-react';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function PatientDashboardContent() {
@@ -96,7 +98,20 @@ export default function PatientDashboardContent() {
         )}
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Link href="/patient/consent" className="group">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 hover:shadow-xl transition-all transform hover:-translate-y-1 border-2 border-primary-500/20">
+              <div className="flex items-center justify-between mb-4">
+                <FileCheck className="h-8 w-8 text-primary-500" />
+                <ConsentStatusBadge type="patient" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">Consent Form</h3>
+              <p className="text-gray-600 dark:text-gray-300 text-sm">
+                Manage your data sharing consent
+              </p>
+            </div>
+          </Link>
+
           <Link href="/patient/submit" className="group">
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 hover:shadow-xl transition-all transform hover:-translate-y-1">
               <div className="flex items-center justify-between mb-4">
@@ -104,7 +119,7 @@ export default function PatientDashboardContent() {
                 <ArrowRight className="h-5 w-5 text-primary-500 transform group-hover:translate-x-1 transition-transform" />
               </div>
               <h3 className="text-xl font-bold mb-2">Submit Records</h3>
-              <p className="text-gray-600 dark:text-gray-300">
+              <p className="text-gray-600 dark:text-gray-300 text-sm">
                 Add new health records to the marketplace
               </p>
             </div>
@@ -117,7 +132,7 @@ export default function PatientDashboardContent() {
                 <ArrowRight className="h-5 w-5 text-primary-500 transform group-hover:translate-x-1 transition-transform" />
               </div>
               <h3 className="text-xl font-bold mb-2">View Records</h3>
-              <p className="text-gray-600 dark:text-gray-300">
+              <p className="text-gray-600 dark:text-gray-300 text-sm">
                 Manage your submitted health records
               </p>
             </div>
@@ -130,7 +145,7 @@ export default function PatientDashboardContent() {
                 <ArrowRight className="h-5 w-5 text-primary-500 transform group-hover:translate-x-1 transition-transform" />
               </div>
               <h3 className="text-xl font-bold mb-2">Earnings</h3>
-              <p className="text-gray-600 dark:text-gray-300">
+              <p className="text-gray-600 dark:text-gray-300 text-sm">
                 Track your earnings from research participation
               </p>
             </div>

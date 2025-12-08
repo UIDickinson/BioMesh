@@ -185,13 +185,20 @@ contract ResearchOracle is ZamaEthereumConfig {
             // This is required for FHE - we need permission to read the handles
             try dataRegistry.grantOracleAccess(i, address(this)) {} catch {}
             
+            // HealthRecord: age, gender, ethnicity, diagnosis, treatmentOutcome,
+            // biomarker, bmi, systolicBP, diastolicBP, patient, timestamp, isActive
             (
                 euint32 age,
+                ,  // gender
+                ,  // ethnicity
                 euint32 diagnosis,
-                ,
+                ,  // treatmentOutcome
                 euint64 biomarker,
-                ,
-                ,
+                ,  // bmi
+                ,  // systolicBP
+                ,  // diastolicBP
+                ,  // patient
+                ,  // timestamp
                 bool isActive
             ) = dataRegistry.records(i);
             
@@ -318,13 +325,20 @@ contract ResearchOracle is ZamaEthereumConfig {
             // This is required for FHE - we need permission to read the handles
             try dataRegistry.grantOracleAccess(i, address(this)) {} catch {}
             
+            // HealthRecord: age, gender, ethnicity, diagnosis, treatmentOutcome,
+            // biomarker, bmi, systolicBP, diastolicBP, patient, timestamp, isActive
             (
-                ,
+                ,  // age
+                ,  // gender
+                ,  // ethnicity
                 euint32 diagnosis,
-                euint32 outcome,
-                ,
-                ,
-                ,
+                euint32 outcome,  // treatmentOutcome
+                ,  // biomarker
+                ,  // bmi
+                ,  // systolicBP
+                ,  // diastolicBP
+                ,  // patient
+                ,  // timestamp
                 bool isActive
             ) = dataRegistry.records(i);
             
@@ -609,10 +623,20 @@ contract ResearchOracle is ZamaEthereumConfig {
         uint256 individualCount = 0;
         
         for (uint256 i = 0; i < endIndex && matchCount < MAX_QUERY_BATCH; i++) {
+            // HealthRecord: age, gender, ethnicity, diagnosis, treatmentOutcome,
+            // biomarker, bmi, systolicBP, diastolicBP, patient, timestamp, isActive
             (
-                ,,,, // age, diagnosis, outcome, biomarker
-                ,    // patient
-                ,    // timestamp
+                ,  // age
+                ,  // gender
+                ,  // ethnicity
+                ,  // diagnosis
+                ,  // treatmentOutcome
+                ,  // biomarker
+                ,  // bmi
+                ,  // systolicBP
+                ,  // diastolicBP
+                ,  // patient
+                ,  // timestamp
                 bool isActive
             ) = dataRegistry.records(i);
             

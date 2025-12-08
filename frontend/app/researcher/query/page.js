@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useWallet } from '@/hooks/useWallet';
 import { useResearchOracle } from '@/hooks/useResearchOracle';
 import QueryBuilder from '@/components/QueryBuilder';
+import ConsentGate from '@/components/ConsentGate';
 import { ArrowLeft, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import Link from 'next/link';
 
@@ -74,14 +75,15 @@ export default function QueryPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <Link
-        href="/researcher"
-        className="inline-flex items-center space-x-2 text-primary-500 hover:text-primary-600 mb-8"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        <span>Back to Dashboard</span>
-      </Link>
+    <ConsentGate type="researcher">
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <Link
+          href="/researcher"
+          className="inline-flex items-center space-x-2 text-primary-500 hover:text-primary-600 mb-8"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Back to Dashboard</span>
+        </Link>
 
       <div className="mb-8">
         <h1 className="text-4xl font-bold mb-2">Execute Query</h1>
@@ -174,6 +176,7 @@ export default function QueryPage() {
           </ul>
         </div>
       </div>
-    </div>
+      </div>
+    </ConsentGate>
   );
 }

@@ -134,6 +134,24 @@ export default function ResearcherDashboard() {
             Track your query spending and payment history
           </p>
         </Link>
+
+        <Link
+          href="/researcher/individual"
+          className="group card-3d p-8 glass-morphism rounded-xl border border-purple-500/20 hover:border-purple-500/40 transition-all bg-gradient-to-br from-purple-500/5 to-primary-500/5"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <h2 className="text-2xl font-bold">Individual Records</h2>
+              <span className="px-2 py-0.5 text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full">
+                Premium
+              </span>
+            </div>
+            <ArrowRight className="h-6 w-6 text-purple-500 group-hover:translate-x-2 transition-transform" />
+          </div>
+          <p className="text-gray-600 dark:text-gray-400">
+            Access anonymized individual patient records from consenting participants
+          </p>
+        </Link>
       </div>
 
       <div className="mt-12 glass-morphism rounded-xl p-8 border border-primary-500/20">

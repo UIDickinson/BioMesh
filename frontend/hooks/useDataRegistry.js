@@ -68,30 +68,46 @@ export function useDataRegistry(signer) {
       // Prepare transaction parameters
       // Production mode (real FHE): handles are bytes32 hex strings - pass them directly
       // Mock mode: contract expects uint256 values - convert handles to BigInt
+      // Order: age, gender, ethnicity, diagnosis, outcome, biomarker, bmi, systolicBP, diastolicBP
       const productionMode = isRealFHEMode();
       const txParams = productionMode
         ? [
-            encrypted.handles[0],  // bytes32 hex string
-            encrypted.handles[1],
-            encrypted.handles[2],
-            encrypted.handles[3],
+            encrypted.handles[0],  // age - bytes32 hex string
+            encrypted.handles[1],  // gender
+            encrypted.handles[2],  // ethnicity
+            encrypted.handles[3],  // diagnosis
+            encrypted.handles[4],  // outcome
+            encrypted.handles[5],  // biomarker
+            encrypted.handles[6],  // bmi
+            encrypted.handles[7],  // systolicBP
+            encrypted.handles[8],  // diastolicBP
             encrypted.inputProof
           ]
         : [
-            BigInt(encrypted.handles[0]),  // uint256
-            BigInt(encrypted.handles[1]),
-            BigInt(encrypted.handles[2]),
-            BigInt(encrypted.handles[3]),
+            BigInt(encrypted.handles[0]),  // age - uint256
+            BigInt(encrypted.handles[1]),  // gender
+            BigInt(encrypted.handles[2]),  // ethnicity
+            BigInt(encrypted.handles[3]),  // diagnosis
+            BigInt(encrypted.handles[4]),  // outcome
+            BigInt(encrypted.handles[5]),  // biomarker
+            BigInt(encrypted.handles[6]),  // bmi
+            BigInt(encrypted.handles[7]),  // systolicBP
+            BigInt(encrypted.handles[8]),  // diastolicBP
             encrypted.inputProof
           ];
       
       console.log('📄 Calling submitHealthData...');
       console.log('   Mode:', productionMode ? 'PRODUCTION (bytes32)' : 'MOCK (uint256)');
-      console.log('   Parameters:', {
+      console.log('   Parameters (9 encrypted fields):', {
         age: txParams[0].toString().slice(0, 20) + '...',
-        diagnosis: txParams[1].toString().slice(0, 20) + '...',
-        outcome: txParams[2].toString().slice(0, 20) + '...',
-        biomarker: txParams[3].toString().slice(0, 20) + '...',
+        gender: txParams[1].toString().slice(0, 20) + '...',
+        ethnicity: txParams[2].toString().slice(0, 20) + '...',
+        diagnosis: txParams[3].toString().slice(0, 20) + '...',
+        outcome: txParams[4].toString().slice(0, 20) + '...',
+        biomarker: txParams[5].toString().slice(0, 20) + '...',
+        bmi: txParams[6].toString().slice(0, 20) + '...',
+        systolicBP: txParams[7].toString().slice(0, 20) + '...',
+        diastolicBP: txParams[8].toString().slice(0, 20) + '...',
         proofBytes: encrypted.inputProof.length
       });
       

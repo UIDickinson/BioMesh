@@ -17,15 +17,47 @@ contract DataRegistry is ZamaEthereumConfig {
     
     // ============ Constants ============
     
+    /// @notice Sentinel values for null/not-provided fields
+    /// @dev FHE doesn't support nullable types, so we use max values as "null"
+    uint32 public constant NULL_UINT32 = type(uint32).max;
+    uint16 public constant NULL_UINT16 = type(uint16).max;
+    uint8 public constant NULL_UINT8 = type(uint8).max;
+    
+    /// @notice Gender codes
+    uint8 public constant GENDER_MALE = 0;
+    uint8 public constant GENDER_FEMALE = 1;
+    uint8 public constant GENDER_OTHER = 2;
+    
+    /// @notice NIH Ethnicity categories
+    uint8 public constant ETHNICITY_AMERICAN_INDIAN = 1;
+    uint8 public constant ETHNICITY_ASIAN = 2;
+    uint8 public constant ETHNICITY_BLACK = 3;
+    uint8 public constant ETHNICITY_HISPANIC = 4;
+    uint8 public constant ETHNICITY_PACIFIC_ISLANDER = 5;
+    uint8 public constant ETHNICITY_WHITE = 6;
+    uint8 public constant ETHNICITY_MULTIRACIAL = 7;
+    
     /// @notice Minimum k-anonymity threshold for individual record access
     /// @dev Start with k=1 for initial deployment, increase as user base grows
     uint256 public constant K_ANONYMITY_THRESHOLD = 1;
     
     struct HealthRecord {
-        euint32 age;
-        euint32 diagnosis;
-        euint32 treatmentOutcome;
-        euint64 biomarker;
+        // Core demographics
+        euint32 age;              // 0-120, NULL_UINT32 = not provided
+        euint8 gender;            // 0=Male, 1=Female, 2=Other, NULL_UINT8 = not provided
+        euint8 ethnicity;         // NIH categories: 1-7, NULL_UINT8 = not provided
+        
+        // Clinical data
+        euint32 diagnosis;        // ICD-10 category code
+        euint32 treatmentOutcome; // 0-100 scale, NULL_UINT32 = not provided
+        euint64 biomarker;        // Primary biomarker value
+        
+        // Vitals (optional)
+        euint16 bmi;              // Stored as x10 (e.g., 245 = 24.5), NULL_UINT16 = not provided
+        euint16 systolicBP;       // mmHg, NULL_UINT16 = not provided  
+        euint16 diastolicBP;      // mmHg, NULL_UINT16 = not provided
+        
+        // Metadata
         address patient;
         uint256 timestamp;
         bool isActive;
@@ -99,19 +131,30 @@ contract DataRegistry is ZamaEthereumConfig {
     // ============ Core Functions ============
     
     /**
-     * @notice Submit encrypted health data
-     * @param encryptedAge Encrypted age value
-     * @param encryptedDiagnosis Encrypted diagnosis code
-     * @param encryptedOutcome Encrypted treatment outcome
-     * @param encryptedBiomarker Encrypted biomarker value
+     * @notice Submit encrypted health data with expanded fields
+     * @dev Uses sentinel values (NULL_*) for optional fields not provided
+     * @param encryptedAge Encrypted age (1-120) or NULL_UINT32
+     * @param encryptedGender Encrypted gender (0-2) or NULL_UINT8
+     * @param encryptedEthnicity Encrypted ethnicity (1-7) or NULL_UINT8
+     * @param encryptedDiagnosis Encrypted diagnosis code (required)
+     * @param encryptedOutcome Encrypted treatment outcome (0-100) or NULL_UINT32
+     * @param encryptedBiomarker Encrypted biomarker value (required)
+     * @param encryptedBMI Encrypted BMI x10 (e.g., 245=24.5) or NULL_UINT16
+     * @param encryptedSystolicBP Encrypted systolic BP (mmHg) or NULL_UINT16
+     * @param encryptedDiastolicBP Encrypted diastolic BP (mmHg) or NULL_UINT16
      * @param inputProof Proof for all encrypted inputs
      * @return recordId The ID of the newly created record
      */
     function submitHealthData(
         externalEuint32 encryptedAge,
+        externalEuint8 encryptedGender,
+        externalEuint8 encryptedEthnicity,
         externalEuint32 encryptedDiagnosis,
         externalEuint32 encryptedOutcome,
         externalEuint64 encryptedBiomarker,
+        externalEuint16 encryptedBMI,
+        externalEuint16 encryptedSystolicBP,
+        externalEuint16 encryptedDiastolicBP,
         bytes calldata inputProof
     ) external returns (uint256) {
         
@@ -121,41 +164,82 @@ contract DataRegistry is ZamaEthereumConfig {
         );
         lastSubmission[msg.sender] = block.timestamp;
         
+        // Decrypt inputs from external format
         euint32 age = FHE.fromExternal(encryptedAge, inputProof);
+        euint8 gender = FHE.fromExternal(encryptedGender, inputProof);
+        euint8 ethnicity = FHE.fromExternal(encryptedEthnicity, inputProof);
         euint32 diagnosis = FHE.fromExternal(encryptedDiagnosis, inputProof);
         euint32 outcome = FHE.fromExternal(encryptedOutcome, inputProof);
         euint64 biomarker = FHE.fromExternal(encryptedBiomarker, inputProof);
+        euint16 bmi = FHE.fromExternal(encryptedBMI, inputProof);
+        euint16 systolicBP = FHE.fromExternal(encryptedSystolicBP, inputProof);
+        euint16 diastolicBP = FHE.fromExternal(encryptedDiastolicBP, inputProof);
         
-        ebool validAge = FHE.and(
+        // Validation: age must be 1-120 OR null sentinel
+        // (age >= 1 AND age <= 120) OR (age == NULL_UINT32)
+        ebool ageInRange = FHE.and(
             FHE.ge(age, FHE.asEuint32(1)),
             FHE.le(age, FHE.asEuint32(120))
         );
+        ebool ageIsNull = FHE.eq(age, FHE.asEuint32(NULL_UINT32));
+        FHE.or(ageInRange, ageIsNull); // Valid if in range or null
         
-        ebool validOutcome = FHE.le(outcome, FHE.asEuint32(100));
+        // Validation: gender must be 0-2 OR null sentinel
+        ebool genderInRange = FHE.le(gender, FHE.asEuint8(2));
+        ebool genderIsNull = FHE.eq(gender, FHE.asEuint8(NULL_UINT8));
+        FHE.or(genderInRange, genderIsNull);
         
-        FHE.and(validAge, validOutcome);
+        // Validation: ethnicity must be 1-7 OR null sentinel
+        ebool ethnicityInRange = FHE.and(
+            FHE.ge(ethnicity, FHE.asEuint8(1)),
+            FHE.le(ethnicity, FHE.asEuint8(7))
+        );
+        ebool ethnicityIsNull = FHE.eq(ethnicity, FHE.asEuint8(NULL_UINT8));
+        FHE.or(ethnicityInRange, ethnicityIsNull);
+        
+        // Validation: outcome must be 0-100 OR null sentinel
+        ebool outcomeInRange = FHE.le(outcome, FHE.asEuint32(100));
+        ebool outcomeIsNull = FHE.eq(outcome, FHE.asEuint32(NULL_UINT32));
+        FHE.or(outcomeInRange, outcomeIsNull);
         
         uint256 recordId = recordCount++;
         
         records[recordId] = HealthRecord({
             age: age,
+            gender: gender,
+            ethnicity: ethnicity,
             diagnosis: diagnosis,
             treatmentOutcome: outcome,
             biomarker: biomarker,
+            bmi: bmi,
+            systolicBP: systolicBP,
+            diastolicBP: diastolicBP,
             patient: msg.sender,
             timestamp: block.timestamp,
             isActive: true
         });
         
+        // Allow contract to access all fields
         FHE.allowThis(age);
+        FHE.allowThis(gender);
+        FHE.allowThis(ethnicity);
         FHE.allowThis(diagnosis);
         FHE.allowThis(outcome);
         FHE.allowThis(biomarker);
+        FHE.allowThis(bmi);
+        FHE.allowThis(systolicBP);
+        FHE.allowThis(diastolicBP);
         
+        // Allow patient to access their own data
         FHE.allow(age, msg.sender);
+        FHE.allow(gender, msg.sender);
+        FHE.allow(ethnicity, msg.sender);
         FHE.allow(diagnosis, msg.sender);
         FHE.allow(outcome, msg.sender);
         FHE.allow(biomarker, msg.sender);
+        FHE.allow(bmi, msg.sender);
+        FHE.allow(systolicBP, msg.sender);
+        FHE.allow(diastolicBP, msg.sender);
         
         patientRecordIds[msg.sender].push(recordId);
         
@@ -298,10 +382,16 @@ contract DataRegistry is ZamaEthereumConfig {
         HealthRecord storage record = records[recordId];
         require(record.isActive, "Record not active");
         
+        // Grant access to all encrypted fields
         FHE.allow(record.age, oracle);
+        FHE.allow(record.gender, oracle);
+        FHE.allow(record.ethnicity, oracle);
         FHE.allow(record.diagnosis, oracle);
         FHE.allow(record.treatmentOutcome, oracle);
         FHE.allow(record.biomarker, oracle);
+        FHE.allow(record.bmi, oracle);
+        FHE.allow(record.systolicBP, oracle);
+        FHE.allow(record.diastolicBP, oracle);
         
         emit AccessGranted(recordId, oracle);
     }
@@ -321,10 +411,16 @@ contract DataRegistry is ZamaEthereumConfig {
         for (uint256 i = 0; i < recordIds.length; i++) {
             HealthRecord storage record = records[recordIds[i]];
             if (record.isActive) {
+                // Grant access to all encrypted fields
                 FHE.allow(record.age, oracle);
+                FHE.allow(record.gender, oracle);
+                FHE.allow(record.ethnicity, oracle);
                 FHE.allow(record.diagnosis, oracle);
                 FHE.allow(record.treatmentOutcome, oracle);
                 FHE.allow(record.biomarker, oracle);
+                FHE.allow(record.bmi, oracle);
+                FHE.allow(record.systolicBP, oracle);
+                FHE.allow(record.diastolicBP, oracle);
             }
         }
         

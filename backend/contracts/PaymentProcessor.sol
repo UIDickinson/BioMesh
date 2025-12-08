@@ -128,13 +128,20 @@ contract PaymentProcessor {
         uint256 uniqueCount = 0;
         
         for (uint256 i = 0; i < recordIds.length; i++) {
+            // HealthRecord: age, gender, ethnicity, diagnosis, treatmentOutcome,
+            // biomarker, bmi, systolicBP, diastolicBP, patient, timestamp, isActive
             (
-                ,
-                ,
-                ,
-                ,
+                ,  // age
+                ,  // gender
+                ,  // ethnicity
+                ,  // diagnosis
+                ,  // treatmentOutcome
+                ,  // biomarker
+                ,  // bmi
+                ,  // systolicBP
+                ,  // diastolicBP
                 address patient,
-                ,
+                ,  // timestamp
                 bool isActive
             ) = dataRegistry.records(recordIds[i]);
             

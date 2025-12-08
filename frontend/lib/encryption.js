@@ -113,45 +113,127 @@ export function resetFHEInstance() {
   initError = null;
 }
 
+// Sentinel values for null/not-provided fields
+// These MUST match the contract constants
+export const NULL_UINT32 = 0xFFFFFFFF; // type(uint32).max = 4294967295
+export const NULL_UINT16 = 0xFFFF;     // type(uint16).max = 65535
+export const NULL_UINT8 = 0xFF;         // type(uint8).max = 255
+
+// Gender mapping
+export const GENDER_MAP = {
+  'male': 0,
+  'female': 1,
+  'other': 2,
+  'm': 0,
+  'f': 1,
+  '': NULL_UINT8,
+  null: NULL_UINT8,
+  undefined: NULL_UINT8
+};
+
+// Ethnicity mapping (NIH categories)
+export const ETHNICITY_MAP = {
+  'american_indian': 1,
+  'asian': 2,
+  'black': 3,
+  'hispanic': 4,
+  'pacific_islander': 5,
+  'white': 6,
+  'multiracial': 7,
+  'other': 7,
+  'prefer_not_to_say': NULL_UINT8,
+  '': NULL_UINT8,
+  null: NULL_UINT8,
+  undefined: NULL_UINT8
+};
+
 // Helper to create a mock bytes32 handle from a value
-function createMockHandle(value, index) {
+function createMockHandle(value, index, bitSize = 32) {
   // Create a bytes32 that encodes the value in a format the mock contract expects
-  // The mock contract's einput is uint256, so we pad the value to 32 bytes
   const bigValue = BigInt(value);
   const hex = ethers.zeroPadValue(ethers.toBeHex(bigValue), 32);
-  console.log(`  Mock Handle[${index}]: ${hex} (value: ${value})`);
+  console.log(`  Mock Handle[${index}]: ${hex} (value: ${value}, bits: ${bitSize})`);
   return hex;
 }
 
-// Validate health data before encryption
+// Parse value with null handling
+function parseWithNull(value, nullSentinel, min = 0, max = Infinity, parser = parseInt) {
+  if (value === '' || value === null || value === undefined) {
+    return nullSentinel;
+  }
+  const parsed = parser(value);
+  if (isNaN(parsed)) {
+    return nullSentinel;
+  }
+  // If out of range, return null
+  if (parsed < min || parsed > max) {
+    console.warn(`Value ${parsed} out of range [${min}-${max}], treating as null`);
+    return nullSentinel;
+  }
+  return parsed;
+}
+
+// Validate health data before encryption (expanded with null handling)
 function validateHealthData(data) {
   const errors = [];
   
-  const age = parseInt(data.age || 0);
-  if (age < 1 || age > 120) {
-    errors.push(`Age must be between 1 and 120 (got: ${age})`);
-  }
-  
+  // Required fields (must be provided)
   const diagnosis = parseInt(data.diagnosis || 0);
-  if (diagnosis < 0) {
-    errors.push(`Diagnosis code must be non-negative (got: ${diagnosis})`);
-  }
-  
-  const outcome = parseInt(data.outcome || 0);
-  if (outcome < 0 || outcome > 100) {
-    errors.push(`Outcome must be between 0 and 100 (got: ${outcome})`);
+  if (diagnosis < 0 || isNaN(diagnosis)) {
+    errors.push(`Diagnosis code is required and must be non-negative (got: ${data.diagnosis})`);
   }
   
   const biomarker = BigInt(data.biomarker || 0);
   if (biomarker < 0n) {
-    errors.push(`Biomarker must be non-negative`);
+    errors.push(`Biomarker is required and must be non-negative`);
   }
+  
+  // Age: required but validated with range (1-120)
+  const age = parseWithNull(data.age, NULL_UINT32, 1, 120);
+  if (age === NULL_UINT32 && data.age !== '' && data.age !== null && data.age !== undefined) {
+    // They provided a value but it's invalid
+    errors.push(`Age must be between 1 and 120 (got: ${data.age})`);
+  }
+  
+  // Gender: optional, map string to code
+  const genderInput = (data.gender || '').toLowerCase().trim();
+  const gender = GENDER_MAP[genderInput] ?? NULL_UINT8;
+  
+  // Ethnicity: optional, map string to code
+  const ethnicityInput = (data.ethnicity || '').toLowerCase().trim().replace(/\s+/g, '_');
+  const ethnicity = ETHNICITY_MAP[ethnicityInput] ?? NULL_UINT8;
+  
+  // Outcome: optional (0-100)
+  const outcome = parseWithNull(data.outcome, NULL_UINT32, 0, 100);
+  
+  // BMI: optional, stored as x10 (e.g., 24.5 → 245)
+  let bmi = NULL_UINT16;
+  if (data.bmi !== '' && data.bmi !== null && data.bmi !== undefined) {
+    const bmiFloat = parseFloat(data.bmi);
+    if (!isNaN(bmiFloat) && bmiFloat >= 10 && bmiFloat <= 100) {
+      bmi = Math.round(bmiFloat * 10); // Store as integer x10
+    }
+  }
+  
+  // Blood pressure: optional
+  const systolicBP = parseWithNull(data.systolicBP, NULL_UINT16, 60, 250);
+  const diastolicBP = parseWithNull(data.diastolicBP, NULL_UINT16, 40, 150);
   
   if (errors.length > 0) {
     throw new Error(`Validation failed:\n- ${errors.join('\n- ')}`);
   }
   
-  return { age, diagnosis, outcome, biomarker };
+  return { 
+    age, 
+    gender, 
+    ethnicity,
+    diagnosis, 
+    outcome, 
+    biomarker,
+    bmi,
+    systolicBP,
+    diastolicBP
+  };
 }
 
 export async function encryptHealthData(contractAddress, userAddress, data) {
@@ -163,8 +245,10 @@ export async function encryptHealthData(contractAddress, userAddress, data) {
     throw new Error(`Invalid user address: ${userAddress}`);
   }
   
-  // Validate and parse health data
-  const { age, diagnosis, outcome, biomarker } = validateHealthData(data);
+  // Validate and parse health data (with null handling)
+  const { 
+    age, gender, ethnicity, diagnosis, outcome, biomarker, bmi, systolicBP, diastolicBP 
+  } = validateHealthData(data);
   
   const instance = await getFHEInstance();
   
@@ -173,15 +257,31 @@ export async function encryptHealthData(contractAddress, userAddress, data) {
     console.log('🔐 Creating MOCK encrypted input for health data...');
     console.log('📍 Contract:', contractAddress);
     console.log('👤 User:', userAddress);
-    console.log('📊 Data:', { age, diagnosis, outcome, biomarker: biomarker.toString() });
+    console.log('📊 Data (with null handling):', { 
+      age: age === NULL_UINT32 ? 'NULL' : age,
+      gender: gender === NULL_UINT8 ? 'NULL' : gender,
+      ethnicity: ethnicity === NULL_UINT8 ? 'NULL' : ethnicity,
+      diagnosis,
+      outcome: outcome === NULL_UINT32 ? 'NULL' : outcome,
+      biomarker: biomarker.toString(),
+      bmi: bmi === NULL_UINT16 ? 'NULL' : bmi,
+      systolicBP: systolicBP === NULL_UINT16 ? 'NULL' : systolicBP,
+      diastolicBP: diastolicBP === NULL_UINT16 ? 'NULL' : diastolicBP
+    });
     console.log('⚠️ WARNING: Using mock encryption - data is NOT actually encrypted!');
     
-    // Create mock handles (just the values padded to bytes32)
+    // Create mock handles for all 9 fields
+    // Order matters: age, gender, ethnicity, diagnosis, outcome, biomarker, bmi, systolicBP, diastolicBP
     const handles = [
-      createMockHandle(age, 0),
-      createMockHandle(diagnosis, 1),
-      createMockHandle(outcome, 2),
-      createMockHandle(biomarker, 3),
+      createMockHandle(age, 0, 32),           // euint32
+      createMockHandle(gender, 1, 8),          // euint8
+      createMockHandle(ethnicity, 2, 8),       // euint8
+      createMockHandle(diagnosis, 3, 32),      // euint32
+      createMockHandle(outcome, 4, 32),        // euint32
+      createMockHandle(biomarker, 5, 64),      // euint64
+      createMockHandle(bmi, 6, 16),            // euint16
+      createMockHandle(systolicBP, 7, 16),     // euint16
+      createMockHandle(diastolicBP, 8, 16),    // euint16
     ];
     
     // Create a mock proof (empty bytes is fine for mock contract)
@@ -201,18 +301,34 @@ export async function encryptHealthData(contractAddress, userAddress, data) {
     console.log('🔐 Creating REAL encrypted input for health data...');
     console.log('📍 Contract:', contractAddress);
     console.log('👤 User:', userAddress);
-    console.log('📊 Data:', { age, diagnosis, outcome, biomarker: biomarker.toString() });
+    console.log('📊 Data (with null handling):', { 
+      age: age === NULL_UINT32 ? 'NULL' : age,
+      gender: gender === NULL_UINT8 ? 'NULL' : gender,
+      ethnicity: ethnicity === NULL_UINT8 ? 'NULL' : ethnicity,
+      diagnosis,
+      outcome: outcome === NULL_UINT32 ? 'NULL' : outcome,
+      biomarker: biomarker.toString(),
+      bmi: bmi === NULL_UINT16 ? 'NULL' : bmi,
+      systolicBP: systolicBP === NULL_UINT16 ? 'NULL' : systolicBP,
+      diastolicBP: diastolicBP === NULL_UINT16 ? 'NULL' : diastolicBP
+    });
     
     const input = instance.createEncryptedInput(contractAddress, userAddress);
     
-    // Add encrypted fields matching the smart contract
-    // Order matters: age, diagnosis, outcome, biomarker
+    // Add encrypted fields matching the smart contract signature order:
+    // age (32), gender (8), ethnicity (8), diagnosis (32), outcome (32), 
+    // biomarker (64), bmi (16), systolicBP (16), diastolicBP (16)
     input.add32(age);
+    input.add8(gender);
+    input.add8(ethnicity);
     input.add32(diagnosis);
     input.add32(outcome);
     input.add64(biomarker);
+    input.add16(bmi);
+    input.add16(systolicBP);
+    input.add16(diastolicBP);
     
-    console.log('🔒 Encrypting input...');
+    console.log('🔒 Encrypting 9 fields...');
     const encryptedData = await input.encrypt();
     
     console.log('✅ Encryption successful');

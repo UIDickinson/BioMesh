@@ -13,12 +13,18 @@
 const USE_PRODUCTION_ABI = process.env.NEXT_PUBLIC_USE_PRODUCTION_ABI === 'true';
 
 // ABI for submitHealthData - MOCK mode (einput = uint256)
+// Expanded to 9 fields: age, gender, ethnicity, diagnosis, outcome, biomarker, bmi, systolicBP, diastolicBP
 const SUBMIT_HEALTH_DATA_MOCK = {
   "inputs": [
     { "internalType": "uint256", "name": "encryptedAge", "type": "uint256" },
+    { "internalType": "uint256", "name": "encryptedGender", "type": "uint256" },
+    { "internalType": "uint256", "name": "encryptedEthnicity", "type": "uint256" },
     { "internalType": "uint256", "name": "encryptedDiagnosis", "type": "uint256" },
     { "internalType": "uint256", "name": "encryptedOutcome", "type": "uint256" },
     { "internalType": "uint256", "name": "encryptedBiomarker", "type": "uint256" },
+    { "internalType": "uint256", "name": "encryptedBMI", "type": "uint256" },
+    { "internalType": "uint256", "name": "encryptedSystolicBP", "type": "uint256" },
+    { "internalType": "uint256", "name": "encryptedDiastolicBP", "type": "uint256" },
     { "internalType": "bytes", "name": "inputProof", "type": "bytes" }
   ],
   "name": "submitHealthData",
@@ -28,12 +34,18 @@ const SUBMIT_HEALTH_DATA_MOCK = {
 };
 
 // ABI for submitHealthData - PRODUCTION mode (einput = bytes32)
+// Expanded to 9 fields: age, gender, ethnicity, diagnosis, outcome, biomarker, bmi, systolicBP, diastolicBP
 const SUBMIT_HEALTH_DATA_PRODUCTION = {
   "inputs": [
     { "internalType": "bytes32", "name": "encryptedAge", "type": "bytes32" },
+    { "internalType": "bytes32", "name": "encryptedGender", "type": "bytes32" },
+    { "internalType": "bytes32", "name": "encryptedEthnicity", "type": "bytes32" },
     { "internalType": "bytes32", "name": "encryptedDiagnosis", "type": "bytes32" },
     { "internalType": "bytes32", "name": "encryptedOutcome", "type": "bytes32" },
     { "internalType": "bytes32", "name": "encryptedBiomarker", "type": "bytes32" },
+    { "internalType": "bytes32", "name": "encryptedBMI", "type": "bytes32" },
+    { "internalType": "bytes32", "name": "encryptedSystolicBP", "type": "bytes32" },
+    { "internalType": "bytes32", "name": "encryptedDiastolicBP", "type": "bytes32" },
     { "internalType": "bytes", "name": "inputProof", "type": "bytes" }
   ],
   "name": "submitHealthData",
@@ -69,9 +81,14 @@ export const CONTRACTS = {
         "name": "records",
         "outputs": [
           { "internalType": "uint256", "name": "age", "type": "uint256" },
+          { "internalType": "uint256", "name": "gender", "type": "uint256" },
+          { "internalType": "uint256", "name": "ethnicity", "type": "uint256" },
           { "internalType": "uint256", "name": "diagnosis", "type": "uint256" },
           { "internalType": "uint256", "name": "treatmentOutcome", "type": "uint256" },
           { "internalType": "uint256", "name": "biomarker", "type": "uint256" },
+          { "internalType": "uint256", "name": "bmi", "type": "uint256" },
+          { "internalType": "uint256", "name": "systolicBP", "type": "uint256" },
+          { "internalType": "uint256", "name": "diastolicBP", "type": "uint256" },
           { "internalType": "address", "name": "patient", "type": "address" },
           { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
           { "internalType": "bool", "name": "isActive", "type": "bool" }
@@ -407,6 +424,514 @@ export const CONTRACTS = {
           { "indexed": false, "internalType": "bool", "name": "kAnonymityMet", "type": "bool" }
         ],
         "name": "IndividualQueryExecuted",
+        "type": "event"
+      }
+    ]
+  },
+  
+  VerificationRegistry: {
+    address: process.env.NEXT_PUBLIC_VERIFICATION_REGISTRY_ADDRESS,
+    abi: [
+      // Stake Functions
+      {
+        "inputs": [{ "internalType": "uint256", "name": "recordId", "type": "uint256" }],
+        "name": "depositStake",
+        "outputs": [],
+        "stateMutability": "payable",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "uint256", "name": "recordId", "type": "uint256" }],
+        "name": "returnStake",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      // AI Verification Functions
+      {
+        "inputs": [
+          { "internalType": "uint256", "name": "recordId", "type": "uint256" },
+          { "internalType": "bytes32", "name": "documentHash", "type": "bytes32" },
+          { "internalType": "uint8", "name": "evidenceType", "type": "uint8" }
+        ],
+        "name": "requestAIVerification",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          { "internalType": "uint256", "name": "recordId", "type": "uint256" },
+          { "internalType": "uint8", "name": "confidenceScore", "type": "uint8" },
+          { "internalType": "string", "name": "extractionSummary", "type": "string" }
+        ],
+        "name": "submitAIVerification",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      // Provider Attestation Functions
+      {
+        "inputs": [
+          { "internalType": "string", "name": "name", "type": "string" },
+          { "internalType": "string", "name": "licenseNumber", "type": "string" }
+        ],
+        "name": "registerProvider",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "uint256", "name": "recordId", "type": "uint256" }],
+        "name": "attestRecord",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      // Flagging/Slashing Functions
+      {
+        "inputs": [
+          { "internalType": "uint256", "name": "recordId", "type": "uint256" },
+          { "internalType": "string", "name": "reason", "type": "string" }
+        ],
+        "name": "flagRecord",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "withdrawSlashRewards",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      // View Functions
+      {
+        "inputs": [{ "internalType": "uint256", "name": "recordId", "type": "uint256" }],
+        "name": "getVerification",
+        "outputs": [
+          {
+            "components": [
+              { "internalType": "uint8", "name": "status", "type": "uint8" },
+              { "internalType": "uint8", "name": "evidenceType", "type": "uint8" },
+              { "internalType": "bytes32", "name": "documentHash", "type": "bytes32" },
+              { "internalType": "uint8", "name": "aiConfidenceScore", "type": "uint8" },
+              { "internalType": "address", "name": "attestingProvider", "type": "address" },
+              { "internalType": "uint256", "name": "stakeAmount", "type": "uint256" },
+              { "internalType": "uint256", "name": "verificationTimestamp", "type": "uint256" },
+              { "internalType": "string", "name": "aiExtractionSummary", "type": "string" }
+            ],
+            "internalType": "struct VerificationRegistry.Verification",
+            "name": "",
+            "type": "tuple"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "address", "name": "patient", "type": "address" }],
+        "name": "getReputation",
+        "outputs": [
+          {
+            "components": [
+              { "internalType": "uint256", "name": "totalSubmissions", "type": "uint256" },
+              { "internalType": "uint256", "name": "verifiedCount", "type": "uint256" },
+              { "internalType": "uint256", "name": "flaggedCount", "type": "uint256" },
+              { "internalType": "uint256", "name": "slashedCount", "type": "uint256" },
+              { "internalType": "uint16", "name": "reputationScore", "type": "uint16" },
+              { "internalType": "uint256", "name": "lastUpdated", "type": "uint256" }
+            ],
+            "internalType": "struct VerificationRegistry.Reputation",
+            "name": "",
+            "type": "tuple"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "address", "name": "patient", "type": "address" }],
+        "name": "getReputationScore",
+        "outputs": [{ "internalType": "uint16", "name": "score", "type": "uint16" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "uint256", "name": "recordId", "type": "uint256" }],
+        "name": "calculateTrustScore",
+        "outputs": [{ "internalType": "uint8", "name": "trustScore", "type": "uint8" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "address", "name": "provider", "type": "address" }],
+        "name": "isProviderRegistered",
+        "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "address", "name": "", "type": "address" }],
+        "name": "slashRewards",
+        "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      // Constants
+      {
+        "inputs": [],
+        "name": "MIN_STAKE",
+        "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "MAX_STAKE",
+        "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "AI_CONFIDENCE_THRESHOLD",
+        "outputs": [{ "internalType": "uint8", "name": "", "type": "uint8" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "DISPUTE_WINDOW",
+        "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      // Events
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": true, "internalType": "uint256", "name": "recordId", "type": "uint256" },
+          { "indexed": true, "internalType": "address", "name": "patient", "type": "address" },
+          { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }
+        ],
+        "name": "StakeDeposited",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": true, "internalType": "uint256", "name": "recordId", "type": "uint256" },
+          { "indexed": true, "internalType": "address", "name": "patient", "type": "address" },
+          { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }
+        ],
+        "name": "StakeReturned",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": true, "internalType": "uint256", "name": "recordId", "type": "uint256" },
+          { "indexed": false, "internalType": "bytes32", "name": "documentHash", "type": "bytes32" },
+          { "indexed": false, "internalType": "uint8", "name": "evidenceType", "type": "uint8" }
+        ],
+        "name": "AIVerificationRequested",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": true, "internalType": "uint256", "name": "recordId", "type": "uint256" },
+          { "indexed": false, "internalType": "uint8", "name": "confidenceScore", "type": "uint8" },
+          { "indexed": false, "internalType": "bool", "name": "passed", "type": "bool" }
+        ],
+        "name": "AIVerificationCompleted",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": true, "internalType": "uint256", "name": "recordId", "type": "uint256" },
+          { "indexed": true, "internalType": "address", "name": "provider", "type": "address" }
+        ],
+        "name": "ProviderAttestationSubmitted",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": true, "internalType": "address", "name": "patient", "type": "address" },
+          { "indexed": false, "internalType": "uint16", "name": "newScore", "type": "uint16" }
+        ],
+        "name": "ReputationUpdated",
+        "type": "event"
+      }
+    ]
+  },
+  
+  ConsentRegistry: {
+    address: process.env.NEXT_PUBLIC_CONSENT_REGISTRY_ADDRESS,
+    abi: [
+      // World ID Verification
+      {
+        "inputs": [
+          { "internalType": "uint256", "name": "nullifierHash", "type": "uint256" },
+          { "internalType": "bytes", "name": "proof", "type": "bytes" }
+        ],
+        "name": "verifyWorldId",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "address", "name": "user", "type": "address" }],
+        "name": "isUserWorldIdVerified",
+        "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "address", "name": "", "type": "address" }],
+        "name": "worldIdVerifications",
+        "outputs": [
+          { "internalType": "bool", "name": "isVerified", "type": "bool" },
+          { "internalType": "uint256", "name": "nullifierHash", "type": "uint256" },
+          { "internalType": "uint256", "name": "verificationTime", "type": "uint256" },
+          { "internalType": "uint256", "name": "expirationTime", "type": "uint256" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      // Patient Consent
+      {
+        "inputs": [
+          { "internalType": "bool", "name": "acknowledgesDataUsage", "type": "bool" },
+          { "internalType": "bool", "name": "acknowledgesAnonymization", "type": "bool" },
+          { "internalType": "bool", "name": "acknowledgesPaymentTerms", "type": "bool" },
+          { "internalType": "bool", "name": "acknowledgesRevocationRights", "type": "bool" },
+          { "internalType": "bool", "name": "acknowledgesRisks", "type": "bool" },
+          { "internalType": "bool", "name": "acceptsAggregateQueries", "type": "bool" },
+          { "internalType": "bool", "name": "acceptsIndividualQueries", "type": "bool" },
+          { "internalType": "uint8", "name": "minimumPaymentTier", "type": "uint8" },
+          { "internalType": "uint8", "name": "dataRetentionMonths", "type": "uint8" },
+          { "internalType": "bool", "name": "allowsInternationalResearch", "type": "bool" }
+        ],
+        "name": "submitPatientConsent",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "revokePatientConsent",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "address", "name": "patient", "type": "address" }],
+        "name": "hasActivePatientConsent",
+        "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "address", "name": "patient", "type": "address" }],
+        "name": "getPatientConsent",
+        "outputs": [
+          {
+            "components": [
+              { "internalType": "uint8", "name": "status", "type": "uint8" },
+              { "internalType": "uint256", "name": "consentTimestamp", "type": "uint256" },
+              { "internalType": "uint256", "name": "lastUpdated", "type": "uint256" },
+              { "internalType": "bool", "name": "acknowledgesDataUsage", "type": "bool" },
+              { "internalType": "bool", "name": "acknowledgesAnonymization", "type": "bool" },
+              { "internalType": "bool", "name": "acknowledgesPaymentTerms", "type": "bool" },
+              { "internalType": "bool", "name": "acknowledgesRevocationRights", "type": "bool" },
+              { "internalType": "bool", "name": "acknowledgesRisks", "type": "bool" },
+              { "internalType": "bool", "name": "acceptsAggregateQueries", "type": "bool" },
+              { "internalType": "bool", "name": "acceptsIndividualQueries", "type": "bool" },
+              { "internalType": "uint8", "name": "minimumPaymentTier", "type": "uint8" },
+              { "internalType": "uint8", "name": "dataRetentionMonths", "type": "uint8" },
+              { "internalType": "bool", "name": "allowsInternationalResearch", "type": "bool" },
+              { "internalType": "bytes32", "name": "consentHash", "type": "bytes32" }
+            ],
+            "internalType": "struct ConsentRegistry.PatientConsent",
+            "name": "",
+            "type": "tuple"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      // Researcher Consent
+      {
+        "inputs": [
+          { "internalType": "bool", "name": "acknowledgesDataPrivacy", "type": "bool" },
+          { "internalType": "bool", "name": "acknowledgesEthicalUse", "type": "bool" },
+          { "internalType": "bool", "name": "acknowledgesPaymentTerms", "type": "bool" },
+          { "internalType": "bool", "name": "acknowledgesDataLimitations", "type": "bool" },
+          { "internalType": "bool", "name": "acknowledgesSecurityObligations", "type": "bool" },
+          { "internalType": "string", "name": "institutionName", "type": "string" },
+          { "internalType": "string", "name": "researchPurpose", "type": "string" },
+          { "internalType": "bool", "name": "isInstitutionalReviewed", "type": "bool" },
+          { "internalType": "string", "name": "irpApprovalReference", "type": "string" },
+          { "internalType": "bool", "name": "agreesToNotRedistribute", "type": "bool" },
+          { "internalType": "bool", "name": "agreesToCiteDataSource", "type": "bool" },
+          { "internalType": "bool", "name": "agreesToReportFindings", "type": "bool" }
+        ],
+        "name": "submitResearcherConsent",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "revokeResearcherConsent",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "address", "name": "researcher", "type": "address" }],
+        "name": "hasActiveResearcherConsent",
+        "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "address", "name": "researcher", "type": "address" }],
+        "name": "getResearcherConsent",
+        "outputs": [
+          {
+            "components": [
+              { "internalType": "uint8", "name": "status", "type": "uint8" },
+              { "internalType": "uint256", "name": "consentTimestamp", "type": "uint256" },
+              { "internalType": "uint256", "name": "lastUpdated", "type": "uint256" },
+              { "internalType": "bool", "name": "acknowledgesDataPrivacy", "type": "bool" },
+              { "internalType": "bool", "name": "acknowledgesEthicalUse", "type": "bool" },
+              { "internalType": "bool", "name": "acknowledgesPaymentTerms", "type": "bool" },
+              { "internalType": "bool", "name": "acknowledgesDataLimitations", "type": "bool" },
+              { "internalType": "bool", "name": "acknowledgesSecurityObligations", "type": "bool" },
+              { "internalType": "string", "name": "institutionName", "type": "string" },
+              { "internalType": "string", "name": "researchPurpose", "type": "string" },
+              { "internalType": "bool", "name": "isInstitutionalReviewed", "type": "bool" },
+              { "internalType": "string", "name": "irpApprovalReference", "type": "string" },
+              { "internalType": "bool", "name": "agreesToNotRedistribute", "type": "bool" },
+              { "internalType": "bool", "name": "agreesToCiteDataSource", "type": "bool" },
+              { "internalType": "bool", "name": "agreesToReportFindings", "type": "bool" },
+              { "internalType": "bytes32", "name": "consentHash", "type": "bytes32" }
+            ],
+            "internalType": "struct ConsentRegistry.ResearcherConsent",
+            "name": "",
+            "type": "tuple"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      // Composite Checks
+      {
+        "inputs": [{ "internalType": "address", "name": "user", "type": "address" }],
+        "name": "canSubmitData",
+        "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "address", "name": "user", "type": "address" }],
+        "name": "canExecuteQueries",
+        "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "address", "name": "user", "type": "address" }],
+        "name": "canSubmitDataWithTrust",
+        "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "address", "name": "user", "type": "address" }],
+        "name": "canExecuteQueriesWithTrust",
+        "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [{ "internalType": "address", "name": "user", "type": "address" }],
+        "name": "getUserStatus",
+        "outputs": [
+          { "internalType": "bool", "name": "isWorldIdVerified_", "type": "bool" },
+          { "internalType": "bool", "name": "hasPatientConsent_", "type": "bool" },
+          { "internalType": "bool", "name": "hasResearcherConsent_", "type": "bool" },
+          { "internalType": "uint8", "name": "role", "type": "uint8" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "getPaymentTerms",
+        "outputs": [
+          { "internalType": "uint256", "name": "patientShare", "type": "uint256" },
+          { "internalType": "uint256", "name": "platformShare", "type": "uint256" },
+          { "internalType": "uint256", "name": "baseQueryFee", "type": "uint256" },
+          { "internalType": "uint256", "name": "individualQueryFee", "type": "uint256" }
+        ],
+        "stateMutability": "pure",
+        "type": "function"
+      },
+      // Events
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": true, "internalType": "address", "name": "user", "type": "address" },
+          { "indexed": false, "internalType": "uint256", "name": "nullifierHash", "type": "uint256" },
+          { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+        ],
+        "name": "WorldIdVerified",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": true, "internalType": "address", "name": "patient", "type": "address" },
+          { "indexed": false, "internalType": "bytes32", "name": "consentHash", "type": "bytes32" },
+          { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+        ],
+        "name": "PatientConsentGiven",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": true, "internalType": "address", "name": "patient", "type": "address" },
+          { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+        ],
+        "name": "PatientConsentRevoked",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": true, "internalType": "address", "name": "researcher", "type": "address" },
+          { "indexed": false, "internalType": "bytes32", "name": "consentHash", "type": "bytes32" },
+          { "indexed": false, "internalType": "string", "name": "institution", "type": "string" },
+          { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+        ],
+        "name": "ResearcherConsentGiven",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": true, "internalType": "address", "name": "researcher", "type": "address" },
+          { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+        ],
+        "name": "ResearcherConsentRevoked",
         "type": "event"
       }
     ]

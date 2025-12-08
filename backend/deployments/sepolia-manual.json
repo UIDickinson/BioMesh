@@ -6,7 +6,20 @@
   "contracts": {
     "DataRegistry": "0xB2fb41e0E07aeAaA57B1CB71967c3500aC715F9F",
     "PaymentProcessor": "0xb1450B5f8aE6DE2dc89225605219e07a7F7aCF21",
-    "ResearchOracle": "0x2F7603e5E9ac4F0a443996731a825Fa237d1B714"
+    "ResearchOracle": "0x2F7603e5E9ac4F0a443996731a825Fa237d1B714",
+    "VerificationRegistry": {
+      "address": "0x890ce6B64E5760305087D71C341822C4AD449886",
+      "blockNumber": 9788380,
+      "type": "Data Verification & Reputation",
+      "configuration": {
+        "dataRegistry": "0xB2fb41e0E07aeAaA57B1CB71967c3500aC715F9F",
+        "aiOracle": "0xC558F87a83BB747a5E7d19D6387D2dFBC0c0bA60",
+        "minStake": "0.001 ETH",
+        "maxStake": "0.1 ETH",
+        "confidenceThreshold": 70,
+        "disputeWindow": "7 days"
+      }
+    }
   },
   "configuration": {
     "queryFee": "10000000000000000",
@@ -16,5 +29,6 @@
     "consentManagement": true,
     "individualRecordsQuery": true,
     "kAnonymityThreshold": 1
-  }
+  },
+  "lastUpdated": "2025-12-07T11:32:48.958Z"
 }
