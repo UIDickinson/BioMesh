@@ -684,9 +684,8 @@ export default function PatientForm({ onSubmit, isLoading, signer }) {
         
         <div className="space-y-3">
           {[
-            { value: '0', label: 'Private', desc: 'Only you can access this data' },
-            { value: '1', label: 'Aggregate Only', desc: 'Can be included in anonymized statistics' },
-            { value: '2', label: 'Research Access', desc: 'Researchers can query with payment' }
+            { value: '0', label: 'Aggregate Only', desc: 'Your data can be included in anonymized statistics (averages, counts)' },
+            { value: '1', label: 'Individual Access', desc: 'Researchers can access your individual record (with k-anonymity protection). Higher payments.' }
           ].map(option => (
             <label 
               key={option.value}

@@ -672,7 +672,7 @@ export function getDefaultFormState() {
     smokingStatus: '',
     alcoholUse: '',
     exerciseFrequency: '',
-    // Data sharing
+    // Data sharing - 0=Aggregate only, 1=Individual access allowed
     consentLevel: '0'
   };
 }
