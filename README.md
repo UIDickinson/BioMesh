@@ -11,6 +11,10 @@ A decentralized platform for secure health data sharing using Fully Homomorphic 
 - **Research Queries**: Researchers can compute statistics on encrypted data
 - **Real-time Analytics**: View earnings, submitted records, and query results
 - **Decentralized**: Built on Ethereum (Sepolia testnet) with smart contracts
+- **Consent Management**: Comprehensive consent registry for patients and researchers with revocation support
+- **Identity Verification**: Optional World ID integration for Sybil-resistant identity verification
+- **Data Verification**: Multi-layered verification system including AI document verification, stake/slashing, and provider attestation
+- **Reputation System**: Trust scores based on data submission history and verification status
 
 
 ## Quick Start
@@ -43,10 +47,12 @@ Create `frontend/.env.local`:
 NEXT_PUBLIC_CHAIN_ID=11155111
 NEXT_PUBLIC_SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
 
-# Contract Addresses (Sepolia Deployment)
-NEXT_PUBLIC_DATA_REGISTRY_ADDRESS=0xd51ca70ce024f2fdB1bC02692549C819da5407A2
-NEXT_PUBLIC_PAYMENT_PROCESSOR_ADDRESS=0x17560A4F6D5783D6057A042A72B7BE4093DD8714
-NEXT_PUBLIC_RESEARCH_ORACLE_ADDRESS=0x7eBaC8C8C5fecc762892Ac23B031986CCA158d82
+# Contract Addresses (Sepolia Deployment - Latest)
+NEXT_PUBLIC_DATA_REGISTRY_ADDRESS=0x09CEf6B36433614e0Db6875940EDEF51dED8d284
+NEXT_PUBLIC_PAYMENT_PROCESSOR_ADDRESS=0x5Ca58CFdaFEa511E308aF0E76777C4f63C0c9C76
+NEXT_PUBLIC_RESEARCH_ORACLE_ADDRESS=0x59B9975Fc50C9F4DAfA40Ad25158Cbb557a15226
+NEXT_PUBLIC_CONSENT_REGISTRY_ADDRESS=0xC4d42Ae8F522BEe5739E419e61752a15AbbFc52a
+NEXT_PUBLIC_VERIFICATION_REGISTRY_ADDRESS=0x21e97601033937a1ee9b3EB08d887D75d2436bF3
 
 # FHE Mode (set both to 'true' for production)
 NEXT_PUBLIC_USE_REAL_FHE=true
@@ -65,15 +71,22 @@ Visit `http://localhost:3000`
 ## User Roles
 
 ### Patient Dashboard (`/patient`)
+- **Consent Form**: Sign consent acknowledging data usage, anonymization, payment terms, and revocation rights
 - **Submit Data**: Encrypt and submit health records (age, diagnosis, treatment outcome, biomarkers)
-- **View Records**: See all submitted records with timestamps
+- **Data Verification**: Optional stake-based verification and document upload for enhanced trust
+- **View Records**: See all submitted records with timestamps and verification status
 - **Track Earnings**: Monitor earnings from researchers using your data
-- **Revoke Access**: Remove data from the marketplace
+- **Revoke Access**: Remove data from the marketplace and revoke consent
 
 ### Researcher Dashboard (`/researcher`)
+- **Consent Form**: Agree to data privacy, ethical use, and security obligations
 - **Execute Queries**: Run statistical queries on encrypted data
 - **View Results**: See aggregated results (averages, counts) without raw data
 - **Track Spending**: Monitor query costs and history
+
+### About Page (`/about`)
+- Platform overview and technology explanation
+- Feature descriptions and architecture details
 
 ## Configuration Modes
 
@@ -96,17 +109,24 @@ Visit `http://localhost:3000`
 
 | Contract | Address (Sepolia) | Purpose |
 |----------|-------------------|---------|
-| `DataRegistry` | `0xd51ca70ce024f2fdB1bC02692549C819da5407A2` | Stores encrypted patient health records |
-| `PaymentProcessor` | `0x17560A4F6D5783D6057A042A72B7BE4093DD8714` | Distributes query fees (70% patient, 30% platform) |
-| `ResearchOracle` | `0x7eBaC8C8C5fecc762892Ac23B031986CCA158d82` | Executes encrypted statistical queries |
+| `DataRegistry` | `0x09CEf6B36433614e0Db6875940EDEF51dED8d284` | Stores encrypted patient health records |
+| `PaymentProcessor` | `0x5Ca58CFdaFEa511E308aF0E76777C4f63C0c9C76` | Distributes query fees (70% patient, 30% platform) |
+| `ResearchOracle` | `0x59B9975Fc50C9F4DAfA40Ad25158Cbb557a15226` | Executes encrypted statistical queries |
+| `ConsentRegistry` | `0xC4d42Ae8F522BEe5739E419e61752a15AbbFc52a` | Manages consent forms and World ID verification |
+| `VerificationRegistry` | `0x21e97601033937a1ee9b3EB08d887D75d2436bF3` | Handles data authenticity verification and reputation |
 
 ### Deployment Scripts
 
 ```bash
 cd backend
 
-# Deploy all contracts
+# Deploy all contracts (recommended)
+npx hardhat run scripts/deploy-all.js --network sepolia
+
+# Deploy individual contracts
 npx hardhat run scripts/deploy-testnet.js --network sepolia
+npx hardhat run scripts/deploy-consent-registry.js --network sepolia
+npx hardhat run scripts/deploy-verification.js --network sepolia
 
 # Redeploy individual contracts (if code changes)
 npx hardhat run scripts/redeploy-data-registry.js --network sepolia
@@ -121,12 +141,38 @@ npx hardhat run scripts/authorize-oracle.js --network sepolia
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | Next.js 14, React 18, Tailwind CSS, Framer Motion |
+| Frontend | Next.js 14, React 18, Tailwind CSS, Framer Motion, Lucide React |
 | Wallet | ethers.js v6, Web3 wallet |
-| Encryption | @zama-fhe/relayer-sdk v0.3.0-6 |
+| Encryption | Zama fhEVM, @zama-fhe/relayer-sdk v0.3.0-6 |
 | Contracts | Solidity 0.8.24, @fhevm/solidity v0.9.1 |
-| Testing | Hardhat, Chai (78 tests passing) |
+| Testing | Hardhat, Chai (127 passing tests) |
 | Network | Ethereum Sepolia Testnet |
+
+## Architecture
+
+```
+Frontend (Next.js)
+    |
+    +-- Contexts
+    |   +-- WalletContext (Web3 connection)
+    |   +-- ConsentContext (User consent state)
+    |
+    +-- Hooks
+    |   +-- useDataRegistry (FHE data operations)
+    |   +-- usePaymentProcessor (Earnings/payments)
+    |   +-- useResearchOracle (Query execution)
+    |   +-- useConsent (Consent management)
+    |   +-- useVerification (Data verification)
+    |   +-- useWorldId (Identity verification)
+    |   +-- useFHE (Encryption utilities)
+    |
+    +-- Smart Contracts (Sepolia)
+        +-- DataRegistry (Encrypted storage)
+        +-- PaymentProcessor (Fee distribution)
+        +-- ResearchOracle (FHE queries)
+        +-- ConsentRegistry (Consent + World ID)
+        +-- VerificationRegistry (Trust system)
+```
 
 ## Testing
 
@@ -134,15 +180,34 @@ npx hardhat run scripts/authorize-oracle.js --network sepolia
 ```bash
 cd backend
 npx hardhat test
-# 78 passing tests covering all contract functionality
+# 127 passing tests covering all contract functionality
 ```
 
 ### Frontend (Manual)
-1. Connect MetaMask to Sepolia
+1. Connect wallet to Sepolia
 2. Get test ETH from [Sepolia Faucet](https://sepoliafaucet.com/)
-3. Submit health data as patient
-4. Execute query as researcher
-5. Check patient earnings
+3. Complete consent form as patient or researcher
+4. (Optional) Complete World ID verification for enhanced trust
+5. Submit health data as patient
+6. Execute query as researcher
+7. Check patient earnings
+
+## New Contract Features
+
+### ConsentRegistry
+- Patient consent with acknowledgments for data usage, anonymization, payment terms, and risks
+- Researcher consent with ethical use agreements and institutional information
+- World ID verification integration (optional, Sybil-resistant)
+- Consent revocation and status tracking
+- Payment preference configuration (aggregate vs individual queries)
+
+### VerificationRegistry
+- AI document verification with confidence scoring
+- Stake-based verification (0.001 - 0.1 ETH stake)
+- Healthcare provider attestation support
+- Reputation system (0-1000 score)
+- Dispute resolution with 7-day window
+- Slash mechanism for fraudulent data (100% stake loss)
 
 ## Documentation
 
@@ -160,12 +225,13 @@ Contents:
 
 ## Security Notes
 
-⚠️ **This is a demonstration project**. Before production use:
+**This is a demonstration project**. Before production use:
 - Conduct a professional security audit
 - Implement proper key management
 - Ensure HIPAA/GDPR compliance
 - Never commit private keys or mnemonics
 - Use hardware wallets for production deployments
+- Enable real World ID verification (currently in demo mode)
 
 ## Contributing
 
