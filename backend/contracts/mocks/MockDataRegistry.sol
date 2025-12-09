@@ -5,9 +5,14 @@ contract MockDataRegistry {
     
     struct HealthRecord {
         uint256 age;
+        uint8 gender;
+        uint8 ethnicity;
         uint256 diagnosis;
         uint256 treatmentOutcome;
         uint256 biomarker;
+        uint16 bmi;
+        uint16 systolicBP;
+        uint16 diastolicBP;
         address patient;
         uint256 timestamp;
         bool isActive;
@@ -64,27 +69,68 @@ contract MockDataRegistry {
         bytes32 encryptedDiagnosis,
         bytes32 encryptedOutcome,
         bytes32 encryptedBiomarker,
-        bytes calldata
+        bytes calldata,
+        uint8 gender,
+        uint8 ethnicity,
+        uint16 bmi,
+        uint16 systolicBP,
+        uint16 diastolicBP
     ) external returns (uint256) {
-        
         require(
             block.timestamp >= lastSubmission[msg.sender] + submissionCooldown,
             "Submission cooldown active. Please wait before submitting again."
         );
         lastSubmission[msg.sender] = block.timestamp;
-        
         uint256 recordId = recordCount++;
-        
         records[recordId] = HealthRecord({
             age: uint256(encryptedAge),
+            gender: gender,
+            ethnicity: ethnicity,
             diagnosis: uint256(encryptedDiagnosis),
             treatmentOutcome: uint256(encryptedOutcome),
             biomarker: uint256(encryptedBiomarker),
+            bmi: bmi,
+            systolicBP: systolicBP,
+            diastolicBP: diastolicBP,
             patient: msg.sender,
             timestamp: block.timestamp,
             isActive: true
         });
-        
+        patientRecordIds[msg.sender].push(recordId);
+        emit RecordSubmitted(recordId, msg.sender, block.timestamp);
+        return recordId;
+    }
+            // Return all 12 fields to match IDataRegistry interface
+            function records(uint256 recordId) external view returns (
+                uint256 age,
+                uint8 gender,
+                uint8 ethnicity,
+                uint256 diagnosis,
+                uint256 treatmentOutcome,
+                uint256 biomarker,
+                uint16 bmi,
+                uint16 systolicBP,
+                uint16 diastolicBP,
+                address patient,
+                uint256 timestamp,
+                bool isActive
+            ) {
+                HealthRecord storage r = records[recordId];
+                return (
+                    r.age,
+                    r.gender,
+                    r.ethnicity,
+                    r.diagnosis,
+                    r.treatmentOutcome,
+                    r.biomarker,
+                    r.bmi,
+                    r.systolicBP,
+                    r.diastolicBP,
+                    r.patient,
+                    r.timestamp,
+                    r.isActive
+                );
+            }
         patientRecordIds[msg.sender].push(recordId);
         
         emit RecordSubmitted(recordId, msg.sender, block.timestamp);
